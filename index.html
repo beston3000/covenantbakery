@@ -1,140 +1,707 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Bakery</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sweet Dreams Bakery 🍰</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
-      background-color: #fff8f1;
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+      min-height: 100vh;
+      color: #333;
     }
-    button {
-      padding: 5px 10px;
-      margin: 5px;
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    .header h1 {
+      font-size: 3rem;
+      color: #d4691a;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      font-size: 1.2rem;
+      color: #666;
+    }
+
+    /* Tab Navigation Styles */
+    .tab-container {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .tab-navigation {
+      display: flex;
+      background: linear-gradient(135deg, #d4691a, #ff8c42);
+      border-radius: 15px 15px 0 0;
+      overflow-x: auto;
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 20px 15px;
       border: none;
-      background: #eabfb9;
-      color: white;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 1rem;
+      font-weight: 600;
       cursor: pointer;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+      min-width: fit-content;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
-    button:hover {
-      background: #d89c96;
+
+    .tab-button:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
     }
+
+    .tab-button.active {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border-bottom: 3px solid white;
+    }
+
+    .tab-content {
+      padding: 30px;
+      min-height: 400px;
+    }
+
+    .tab-panel {
+      display: none;
+      animation: fadeIn 0.4s ease-in;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    #status-messages {
+      margin-bottom: 20px;
+    }
+
+    .auth-section h3 {
+      color: #d4691a;
+      margin-bottom: 15px;
+      font-size: 1.4rem;
+    }
+
+    .input-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 15px;
+      align-items: center;
+    }
+
     input {
-      margin: 4px;
-      padding: 6px;
+      padding: 12px 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      flex: 1;
+      min-width: 200px;
+      transition: border-color 0.3s ease;
     }
-    hr {
+
+    input:focus {
+      outline: none;
+      border-color: #d4691a;
+      box-shadow: 0 0 10px rgba(212, 105, 26, 0.2);
+    }
+
+    .btn {
+      padding: 12px 20px;
       border: none;
-      border-top: 1px solid #ccc;
-      margin: 10px 0;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(45deg, #d4691a, #ff8c42);
+      color: white;
+      box-shadow: 0 4px 15px rgba(212, 105, 26, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(212, 105, 26, 0.4);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(45deg, #6c757d, #495057);
+      color: white;
+      box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+    }
+
+    .btn-secondary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+    }
+
+    .btn-danger {
+      background: linear-gradient(45deg, #dc3545, #c82333);
+      color: white;
+      box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-success {
+      background: linear-gradient(45deg, #28a745, #20c997);
+      color: white;
+      box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+    }
+
+    .btn-success:hover, .btn-danger:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-google {
+      background: #4285f4;
+      color: white;
+      box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-google:hover {
+      background: #3367d6;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(66, 133, 244, 0.4);
+    }
+
+    .google-icon {
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #4285f4;
+    }
+
+    .admin-controls {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .admin-controls h3 {
+      color: white;
+      margin-bottom: 20px;
+    }
+
+    .add-item-form {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+
+    .add-item-form input {
+      margin-bottom: 10px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .menu-item {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      border: 1px solid #f0f0f0;
+    }
+
+    .menu-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .menu-item-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .menu-item-emoji {
+      font-size: 2.5rem;
+      margin-right: 15px;
+    }
+
+    .menu-item-info h3 {
+      color: #d4691a;
+      font-size: 1.3rem;
+      margin-bottom: 5px;
+    }
+
+    .menu-item-price {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #28a745;
+    }
+
+    .menu-item-description {
+      color: #666;
+      margin-bottom: 15px;
+      line-height: 1.5;
+    }
+
+    .admin-menu-item {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+      border: 1px solid #f0f0f0;
+      position: relative;
+    }
+
+    .admin-menu-item.out-of-stock {
+      opacity: 0.6;
+      border: 2px solid #dc3545;
+    }
+
+    .admin-menu-item .item-controls {
+      display: flex;
+      gap: 5px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+
+    .admin-menu-item .item-controls .btn {
+      padding: 8px 12px;
+      font-size: 0.9rem;
+    }
+
+    .stock-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+
+    .stock-indicator.in-stock {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .stock-indicator.out-of-stock {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .order-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+
+    .order-actions .btn {
+      padding: 8px 15px;
+      font-size: 0.9rem;
+    }
+
+    .edit-form {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .edit-form input {
+      margin-bottom: 10px;
+      width: 100%;
+    }
+
+    .cart-item {
+      background: rgba(255, 255, 255, 0.9);
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid #e0e0e0;
+    }
+
+    .cart-total {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 20px;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      font-style: italic;
+    }
+
+    .status-message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .status-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .status-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .status-warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+
+    .user-info {
+      background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      color: white;
+      text-align: center;
+    }
+
+    .orders-grid {
+      display: grid;
+      gap: 15px;
+    }
+
+    .order-card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid #e0e0e0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .order-status {
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      background: #ffc107;
+      color: #856404;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+      
+      .header h1 {
+        font-size: 2rem;
+      }
+      
+      .tab-navigation {
+        flex-wrap: wrap;
+      }
+      
+      .tab-button {
+        flex: 1 0 auto;
+        min-width: 120px;
+      }
+      
+      .input-group {
+        flex-direction: column;
+      }
+      
+      input {
+        min-width: 100%;
+      }
+      
+      .menu-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.6s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #d4691a;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
-  <h1>🍰 Welcome to the Bakery</h1>
+  <div class="container">
+    <div class="header fade-in">
+      <h1>🍰 Sweet Dreams Bakery</h1>
+      <p>Freshly baked goods made with love in Covenant Hills</p>
+    </div>
 
-  <div id="auth">
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
-    <button onclick="signUp()">Sign Up</button>
-    <button onclick="signIn()">Sign In</button>
-    <button onclick="signOut()">Logout</button>
-  </div>
+    <div id="status-messages"></div>
 
-  <div id="admin-controls" style="display: none;">
-    <h3>Admin Controls</h3>
-    <button onclick="showAddItemForm()">➕ Add Item</button>
-    <div id="add-item-form" style="display:none;">
-      <input id="item-name" placeholder="Name"><br>
-      <input id="item-description" placeholder="Description"><br>
-      <input id="item-price" type="number" placeholder="Price"><br>
-      <input id="item-emoji" placeholder="Emoji (like 🥐)"><br>
-      <button onclick="submitNewItem()">Submit</button>
-      <button onclick="hideAddItemForm()">Cancel</button>
+    <div class="tab-container fade-in">
+      <div class="tab-navigation">
+        <button class="tab-button active" onclick="switchTab('account')" id="account-tab">
+          🔐 Account
+        </button>
+        <button class="tab-button" onclick="switchTab('menu')" id="menu-tab">
+          📦 Menu
+        </button>
+        <button class="tab-button" onclick="switchTab('cart')" id="cart-tab">
+          🛒 Cart <span id="cart-count" style="background: rgba(255,255,255,0.3); padding: 2px 8px; border-radius: 10px; margin-left: 5px;">0</span>
+        </button>
+        <button class="tab-button" onclick="switchTab('orders')" id="orders-tab" style="display: none;">
+          📋 My Orders
+        </button>
+        <button class="tab-button" onclick="switchTab('admin')" id="admin-tab" style="display: none;">
+          👑 Admin
+        </button>
+      </div>
+
+      <div class="tab-content">
+        <!-- Account Tab -->
+        <div id="account-panel" class="tab-panel active">
+          <div id="signed-out-view">
+            <h3>🔐 Account Access</h3>
+            
+            <!-- Google Sign In Button -->
+            <div style="margin-bottom: 20px; text-align: center;">
+              <button class="btn btn-google" onclick="signInWithGoogle()" style="width: 100%; max-width: 300px;">
+                <div class="google-icon">G</div>
+                Continue with Google
+              </button>
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0; color: #666;">
+              <span style="background: white; padding: 0 15px;">or</span>
+              <hr style="margin-top: -12px; border: none; border-top: 1px solid #e0e0e0;">
+            </div>
+            
+            <div class="input-group">
+              <input id="email" type="email" placeholder="Email Address" autocomplete="email">
+              <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+            </div>
+            <div class="input-group">
+              <button class="btn btn-primary" onclick="signUp()">Create Account</button>
+              <button class="btn btn-secondary" onclick="signIn()">Sign In</button>
+            </div>
+          </div>
+
+          <div id="signed-in-view" style="display: none;">
+            <div class="user-info">
+              <div id="user-avatar" style="width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 15px; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 24px;"></div>
+              <h3>👋 Welcome back!</h3>
+              <p id="user-email-display"></p>
+              <p id="user-role-display"></p>
+              <button class="btn btn-danger" onclick="signOut()" style="margin-top: 15px;">Logout</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Menu Tab -->
+        <div id="menu-panel" class="tab-panel">
+          <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">📦 Our Fresh Menu</h2>
+          <div id="menu" class="menu-grid">
+            <div class="empty-state">
+              <p>Sign in to view our delicious menu items!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cart Tab -->
+        <div id="cart-panel" class="tab-panel">
+          <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">🛒 Your Cart</h2>
+          <div id="cart">
+            <div class="empty-state">
+              <p>Your cart is empty. Add some delicious items!</p>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 20px;">
+            <button class="btn btn-success" onclick="checkout()" id="checkout-btn" style="font-size: 1.2rem; padding: 15px 30px;">
+              🛍️ Checkout & Pay
+            </button>
+          </div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div id="orders-panel" class="tab-panel">
+          <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">📋 My Orders</h2>
+          <div id="orders-list">
+            <div class="empty-state">
+              <p>You haven't placed any orders yet.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Tab -->
+        <div id="admin-panel" class="tab-panel">
+          <div class="admin-controls">
+            <h3>👑 Admin Dashboard</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+              <button class="btn btn-success" onclick="showAddItemForm()">➕ Add New Item</button>
+              <button class="btn btn-secondary" onclick="toggleAdminView('menu')">📦 Manage Menu</button>
+              <button class="btn btn-secondary" onclick="toggleAdminView('orders')">📋 Manage Orders</button>
+            </div>
+            
+            <div id="add-item-form" class="add-item-form" style="display:none;">
+              <h4 style="color: white; margin-bottom: 15px;">Add New Bakery Item</h4>
+              <input id="item-name" placeholder="Item Name (e.g., Chocolate Croissant)">
+              <input id="item-description" placeholder="Description">
+              <input id="item-price" type="number" step="0.01" placeholder="Price (e.g., 4.99)">
+              <input id="item-emoji" placeholder="Emoji (e.g., 🥐)">
+              <div style="margin-top: 15px;">
+                <button class="btn btn-success" onclick="submitNewItem()">Add Item</button>
+                <button class="btn btn-secondary" onclick="hideAddItemForm()">Cancel</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Menu Management Section -->
+          <div id="admin-menu-section">
+            <h3 style="color: #d4691a; margin-bottom: 15px;">📦 Menu Management</h3>
+            <div id="admin-menu-items" class="menu-grid">
+              <div class="empty-state">
+                <p>Loading menu items...</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Orders Management Section -->
+          <div id="admin-orders-section" style="display: none;">
+            <h3 style="color: #d4691a; margin-bottom: 15px;">📋 Order Management</h3>
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-secondary" onclick="loadAdminOrders('all')">All Orders</button>
+              <button class="btn btn-primary" onclick="loadAdminOrders('pending')">Pending</button>
+              <button class="btn btn-success" onclick="loadAdminOrders('completed')">Completed</button>
+              <button class="btn btn-danger" onclick="loadAdminOrders('cancelled')">Cancelled</button>
+            </div>
+            <div id="admin-orders-list">
+              <div class="empty-state">
+                <p>Loading orders...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <h2>📦 Menu</h2>
-  <div id="menu"></div>
-
-  <h2>🛒 Cart</h2>
-  <div id="cart"></div>
-  <button onclick="checkout()">Checkout</button>
-
   <script>
-    const firebaseConfig = {
-      // 🛠️ Replace these with your real Firebase config values
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-
+    // Global variables
     let currentUser = null;
     let userData = null;
     let cart = [];
 
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        currentUser = user;
-        try {
-          const doc = await db.collection('users').doc(user.uid).get();
-          userData = doc.data();
-          if (!userData) throw new Error("User data not found.");
-
-          if (userData.role === 'admin') {
-            document.getElementById('admin-controls').style.display = 'block';
-          }
-
-          loadMenuItems();
-        } catch (err) {
-          console.error("User data error:", err);
-          alert("There was a problem loading your account.");
-        }
-      } else {
-        currentUser = null;
-        userData = null;
-        document.getElementById('admin-controls').style.display = 'none';
-        document.getElementById('menu').innerHTML = '';
-        document.getElementById('cart').innerHTML = '';
-      }
-    });
-
-    async function signUp() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      try {
-        const result = await auth.createUserWithEmailAndPassword(email, password);
-        await db.collection('users').doc(result.user.uid).set({
-          email,
-          role: 'customer',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        alert("Signed up successfully!");
-      } catch (error) {
-        alert(getFriendlyError(error));
-      }
+    // Helper functions (available immediately)
+    function showStatus(message, type = 'success') {
+      const statusDiv = document.getElementById('status-messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `status-message status-${type} fade-in`;
+      messageDiv.textContent = message;
+      statusDiv.appendChild(messageDiv);
+      
+      setTimeout(() => {
+        messageDiv.remove();
+      }, 5000);
     }
 
-    async function signIn() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      try {
-        await auth.signInWithEmailAndPassword(email, password);
-      } catch (error) {
-        alert(getFriendlyError(error));
-      }
+    function showLoading(buttonElement) {
+      const originalText = buttonElement.textContent;
+      buttonElement.innerHTML = '<span class="loading"></span> Loading...';
+      buttonElement.disabled = true;
+      return () => {
+        buttonElement.textContent = originalText;
+        buttonElement.disabled = false;
+      };
     }
 
-    function signOut() {
-      auth.signOut();
+    function updateCartCount() {
+      document.getElementById('cart-count').textContent = cart.length;
     }
 
     function getFriendlyError(error) {
@@ -143,94 +710,861 @@
         case 'auth/user-not-found': return 'No account found with this email.';
         case 'auth/wrong-password': return 'Incorrect password.';
         case 'auth/invalid-email': return 'Invalid email address.';
-        case 'auth/invalid-credential': return 'Session expired or invalid.';
+        case 'auth/invalid-credential': return 'Invalid email or password.';
+        case 'auth/weak-password': return 'Password should be at least 6 characters.';
+        case 'auth/email-already-in-use': return 'An account with this email already exists.';
         default: return error.message;
       }
     }
 
-    async function loadMenuItems() {
-      try {
-        const snapshot = await db.collection('menuItems').where('inStock', '==', true).get();
-        const menuDiv = document.getElementById('menu');
-        menuDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-          const item = doc.data();
-          const div = document.createElement('div');
-          div.innerHTML = `${item.emoji || '❔'} <b>${item.name}</b> - $${item.price.toFixed(2)}<br>${item.description}<br><button onclick="addToCart('${doc.id}', '${item.name}', ${item.price})">Add to Cart</button><hr>`;
-          menuDiv.appendChild(div);
-        });
-      } catch (err) {
-        console.error("Error loading menu items:", err);
-        alert("Failed to load menu.");
+    function getStatusColor(status) {
+      switch(status) {
+        case 'pending': return '#ffc107';
+        case 'preparing': return '#17a2b8';
+        case 'completed': return '#28a745';
+        case 'cancelled': return '#dc3545';
+        default: return '#6c757d';
       }
     }
 
-    function addToCart(id, name, price) {
-      cart.push({ id, name, price });
+    // Tab functions (available immediately)
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+      
+      document.getElementById(tabName + '-tab').classList.add('active');
+      document.getElementById(tabName + '-panel').classList.add('active');
+      
+      if (tabName === 'orders' && currentUser) {
+        loadUserOrders();
+      } else if (tabName === 'admin' && userData?.role === 'admin') {
+        loadAdminMenuItems();
+        loadAdminOrders('all');
+      }
+    }
+
+    // Authentication functions (available immediately)
+    async function signInWithGoogle() {
+      if (!firebase || !firebase.auth) {
+        showStatus('Firebase is still loading. Please wait a moment and try again.', 'warning');
+        return;
+      }
+
+      const googleBtn = event.target;
+      const stopLoading = showLoading(googleBtn);
+
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope('email');
+        provider.addScope('profile');
+        
+        const result = await firebase.auth().signInWithPopup(provider);
+        showStatus(`Welcome ${result.user.displayName || result.user.email}!`, 'success');
+      } catch (error) {
+        console.error("Google sign in error:", error);
+        if (error.code === 'auth/popup-closed-by-user') {
+          showStatus("Sign in cancelled.", 'warning');
+        } else if (error.code === 'auth/popup-blocked') {
+          showStatus("Pop-up blocked! Please allow pop-ups and try again.", 'error');
+        } else {
+          showStatus("Google sign in failed. Please try again.", 'error');
+        }
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function signUp() {
+      if (!firebase || !firebase.auth) {
+        showStatus('Firebase is still loading. Please wait a moment and try again.', 'warning');
+        return;
+      }
+
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showStatus('Please enter both email and password.', 'warning');
+        return;
+      }
+
+      const signUpBtn = event.target;
+      const stopLoading = showLoading(signUpBtn);
+
+      try {
+        const result = await firebase.auth().createUserWithEmailAndPassword(email, password);
+        await firebase.firestore().collection('users').doc(result.user.uid).set({
+          email,
+          role: 'customer',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus("Account created successfully! Welcome to Sweet Dreams Bakery!", 'success');
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+      } catch (error) {
+        showStatus(getFriendlyError(error), 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function signIn() {
+      if (!firebase || !firebase.auth) {
+        showStatus('Firebase is still loading. Please wait a moment and try again.', 'warning');
+        return;
+      }
+
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showStatus('Please enter both email and password.', 'warning');
+        return;
+      }
+
+      const signInBtn = event.target;
+      const stopLoading = showLoading(signInBtn);
+
+      try {
+        await firebase.auth().signInWithEmailAndPassword(email, password);
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+      } catch (error) {
+        showStatus(getFriendlyError(error), 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    function signOut() {
+      if (firebase && firebase.auth) {
+        firebase.auth().signOut();
+        cart = [];
+        renderCart();
+        showStatus('Signed out successfully!', 'success');
+      }
+    }
+
+    // Cart functions (available immediately)
+    function addToCart(id, name, price, emoji) {
+      cart.push({ id, name, price, emoji });
       renderCart();
+      updateCartCount();
+      showStatus(`${name} added to cart!`, 'success');
+    }
+
+    function removeFromCart(index) {
+      const item = cart[index];
+      cart.splice(index, 1);
+      renderCart();
+      updateCartCount();
+      showStatus(`${item.name} removed from cart.`, 'warning');
     }
 
     function renderCart() {
       const cartDiv = document.getElementById('cart');
-      cartDiv.innerHTML = '';
+      
+      if (cart.length === 0) {
+        cartDiv.innerHTML = '<div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>';
+        updateCartCount();
+        return;
+      }
+
       let total = 0;
-      cart.forEach(item => {
+      let cartHTML = '';
+      
+      cart.forEach((item, index) => {
         total += item.price;
-        cartDiv.innerHTML += `${item.name} - $${item.price.toFixed(2)}<br>`;
+        cartHTML += `
+          <div class="cart-item">
+            <div>
+              <span style="font-size: 1.5rem; margin-right: 10px;">${item.emoji}</span>
+              <strong>${item.name}</strong> - ${item.price.toFixed(2)}
+            </div>
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" onclick="removeFromCart(${index})">
+              Remove
+            </button>
+          </div>
+        `;
       });
-      cartDiv.innerHTML += `<b>Total: $${total.toFixed(2)}</b>`;
+      
+      cartHTML += `<div class="cart-total">Total: ${total.toFixed(2)}</div>`;
+      cartDiv.innerHTML = cartHTML;
+      updateCartCount();
     }
 
     async function checkout() {
-      if (!currentUser) return alert("Sign in first.");
-      if (cart.length === 0) return alert("Cart is empty.");
+      if (!firebase || !firebase.firestore) {
+        showStatus('Firebase is still loading. Please wait a moment and try again.', 'warning');
+        return;
+      }
+
+      if (!currentUser) {
+        showStatus("Please sign in to place an order.", 'warning');
+        switchTab('account');
+        return;
+      }
+      
+      if (cart.length === 0) {
+        showStatus("Your cart is empty.", 'warning');
+        return;
+      }
+
+      const checkoutBtn = document.getElementById('checkout-btn');
+      const stopLoading = showLoading(checkoutBtn);
+
       try {
-        await db.collection('orders').add({
+        await firebase.firestore().collection('orders').add({
           userId: currentUser.uid,
+          userEmail: userData.email,
           items: cart,
+          total: cart.reduce((sum, item) => sum + item.price, 0),
+          status: 'pending',
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        alert("Order placed!");
+        
+        showStatus("Order placed successfully! We'll start baking right away! 🎉", 'success');
         cart = [];
         renderCart();
       } catch (err) {
         console.error("Checkout error:", err);
-        alert("Order failed.");
+        showStatus("Failed to place order. Please try again.", 'error');
+      } finally {
+        stopLoading();
       }
     }
 
+    // Admin functions (available immediately)
     function showAddItemForm() {
       document.getElementById('add-item-form').style.display = 'block';
     }
 
     function hideAddItemForm() {
       document.getElementById('add-item-form').style.display = 'none';
+      document.getElementById('item-name').value = '';
+      document.getElementById('item-description').value = '';
+      document.getElementById('item-price').value = '';
+      document.getElementById('item-emoji').value = '';
     }
 
-    async function submitNewItem() {
-      const name = document.getElementById('item-name')?.value || '';
-      const description = document.getElementById('item-description')?.value || '';
-      const price = parseFloat(document.getElementById('item-price')?.value || 0);
-      const emoji = document.getElementById('item-emoji')?.value || '';
+    function toggleAdminView(view) {
+      if (view === 'menu') {
+        document.getElementById('admin-menu-section').style.display = 'block';
+        document.getElementById('admin-orders-section').style.display = 'none';
+        loadAdminMenuItems();
+      } else if (view === 'orders') {
+        document.getElementById('admin-menu-section').style.display = 'none';
+        document.getElementById('admin-orders-section').style.display = 'block';
+        loadAdminOrders('all');
+      }
+    }
 
-      if (!name || !description || isNaN(price) || !emoji) {
-        alert("Please fill in all fields.");
+    function editMenuItem(itemId) {
+      document.getElementById(`edit-form-${itemId}`).style.display = 'block';
+    }
+
+    function cancelEditMenuItem(itemId) {
+      document.getElementById(`edit-form-${itemId}`).style.display = 'none';
+    }
+
+    async function saveMenuItem(itemId) {
+      const name = document.getElementById(`edit-name-${itemId}`).value.trim();
+      const description = document.getElementById(`edit-description-${itemId}`).value.trim();
+      const price = parseFloat(document.getElementById(`edit-price-${itemId}`).value);
+      const emoji = document.getElementById(`edit-emoji-${itemId}`).value.trim();
+
+      if (!name || !description || isNaN(price) || price <= 0) {
+        showStatus("Please fill in all fields with valid information.", 'warning');
         return;
       }
 
       try {
-        await db.collection('menuItems').add({
-          name, description, price, emoji, inStock: true,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        await firebase.firestore().collection('menuItems').doc(itemId).update({
+          name, description, price, emoji,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        alert("Item added!");
-        hideAddItemForm();
+        
+        showStatus("Menu item updated successfully!", 'success');
+        cancelEditMenuItem(itemId);
+        loadAdminMenuItems();
         loadMenuItems();
       } catch (err) {
-        console.error("Failed to add item:", err);
-        alert("Add item failed.");
+        console.error("Failed to update item:", err);
+        showStatus("Failed to update menu item.", 'error');
       }
     }
-  </script>
-</body>
-</html>
+
+    async function toggleItemStock(itemId, inStock) {
+      try {
+        await firebase.firestore().collection('menuItems').doc(itemId).update({
+          inStock,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`Item ${inStock ? 'restocked' : 'marked out of stock'}!`, 'success');
+        loadAdminMenuItems();
+        loadMenuItems();
+      } catch (err) {
+        console.error("Failed to update stock:", err);
+        showStatus("Failed to update stock status.", 'error');
+      }
+    }
+
+    async function deleteMenuItem(itemId, itemName) {
+      if (!confirm(`Are you sure you want to delete "${itemName}"? This action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        await firebase.firestore().collection('menuItems').doc(itemId).delete();
+        showStatus(`"${itemName}" deleted successfully.`, 'success');
+        loadAdminMenuItems();
+        loadMenuItems();
+      } catch (err) {
+        console.error("Failed to delete item:", err);
+        showStatus("Failed to delete menu item.", 'error');
+      }
+    }
+
+    async function updateOrderStatus(orderId, newStatus) {
+      try {
+        await firebase.firestore().collection('orders').doc(orderId).update({
+          status: newStatus,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`Order status updated to ${newStatus}!`, 'success');
+        loadAdminOrders('all');
+      } catch (err) {
+        console.error("Failed to update order status:", err);
+        showStatus("Failed to update order status.", 'error');
+      }
+    }
+
+    async function submitNewItem() {
+      const name = document.getElementById('item-name')?.value?.trim() || '';
+      const description = document.getElementById('item-description')?.value?.trim() || '';
+      const price = parseFloat(document.getElementById('item-price')?.value || 0);
+      const emoji = document.getElementById('item-emoji')?.value?.trim() || '';
+
+      if (!name || !description || isNaN(price) || price <= 0 || !emoji) {
+        showStatus("Please fill in all fields with valid information.", 'warning');
+        return;
+      }
+
+      try {
+        await firebase.firestore().collection('menuItems').add({
+          name, 
+          description, 
+          price, 
+          emoji, 
+          inStock: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`${name} added to menu successfully!`, 'success');
+        hideAddItemForm();
+        loadAdminMenuItems();
+        await loadMenuItems();
+      } catch (err) {
+        console.error("Failed to add item:", err);
+        showStatus("Failed to add menu item. Please try again.", 'error');
+      }
+    }
+
+    // Functions that need Firebase (loaded after initialization)
+    async function loadMenuItems() {
+      if (!firebase || !firebase.firestore) return;
+      
+      try {
+        const snapshot = await firebase.firestore().collection('menuItems').where('inStock', '==', true).get();
+        const menuDiv = document.getElementById('menu');
+        
+        if (snapshot.empty) {
+          menuDiv.innerHTML = '<div class="empty-state"><p>No items available right now. Check back soon!</p></div>';
+          return;
+        }
+
+        menuDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'menu-item fade-in';
+          itemDiv.innerHTML = `
+            <div class="menu-item-header">
+              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
+              <div class="menu-item-info">
+                <h3>${item.name}</h3>
+                <div class="menu-item-price">${item.price.toFixed(2)}</div>
+              </div>
+            </div>
+            <div class="menu-item-description">${item.description}</div>
+            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '🍰'}')">
+              Add to Cart
+            </button>
+          `;
+          menuDiv.appendChild(itemDiv);
+        });
+      } catch (err) {
+        console.error("Error loading menu items:", err);
+        showStatus("Failed to load menu items.", 'error');
+      }
+    }
+
+    async function loadUserOrders() {
+      if (!currentUser || !firebase || !firebase.firestore) return;
+      
+      try {
+        const snapshot = await firebase.firestore().collection('orders')
+          .where('userId', '==', currentUser.uid)
+          .orderBy('createdAt', 'desc')
+          .get();
+        
+        const ordersDiv = document.getElementById('orders-list');
+        
+        if (snapshot.empty) {
+          ordersDiv.innerHTML = '<div class="empty-state"><p>You haven\'t placed any orders yet.</p></div>';
+          return;
+        }
+
+        ordersDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const order = doc.data();
+          const orderDiv = document.createElement('div');
+          orderDiv.className = 'order-card';
+          
+          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>');
+          const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
+          
+          orderDiv.innerHTML = `
+            <div class="order-header">
+              <div>
+                <strong>Order from ${orderDate}</strong>
+              </div>
+              <div class="order-status">
+                ${order.status || 'pending'}
+              </div>
+            </div>
+            <div style="margin-bottom: 10px;">
+              ${itemsList}
+            </div>
+            <div style="font-weight: bold; color: #28a745;">
+              Total: ${order.total.toFixed(2)}
+            </div>
+          `;
+          ordersDiv.appendChild(orderDiv);
+        });
+      } catch (err) {
+        console.error("Error loading orders:", err);
+        showStatus("Failed to load orders.", 'error');
+      }
+    }
+
+    async function loadAdminMenuItems() {
+      if (!userData || userData.role !== 'admin' || !firebase || !firebase.firestore) return;
+      
+      try {
+        const snapshot = await firebase.firestore().collection('menuItems').orderBy('createdAt', 'desc').get();
+        const menuDiv = document.getElementById('admin-menu-items');
+        
+        if (snapshot.empty) {
+          menuDiv.innerHTML = '<div class="empty-state"><p>No menu items yet.</p></div>';
+          return;
+        }
+
+        menuDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          const itemDiv = document.createElement('div');
+          itemDiv.className = `admin-menu-item ${!item.inStock ? 'out-of-stock' : ''}`;
+          itemDiv.innerHTML = `
+            <div class="stock-indicator ${item.inStock ? 'in-stock' : 'out-of-stock'}">
+              ${item.inStock ? 'In Stock' : 'Out of Stock'}
+            </div>
+            <div class="menu-item-header">
+              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
+              <div class="menu-item-info">
+                <h3>${item.name}</h3>
+                <div class="menu-item-price">${item.price.toFixed(2)}</div>
+              </div>
+            </div>
+            <div class="menu-item-description">${item.description}</div>
+            <div class="item-controls">
+              <button class="btn btn-primary" onclick="editMenuItem('${doc.id}')">✏️ Edit</button>
+              <button class="btn ${item.inStock ? 'btn-danger' : 'btn-success'}" onclick="toggleItemStock('${doc.id}', ${!item.inStock})">
+                ${item.inStock ? '❌ Out of Stock' : '✅ In Stock'}
+              </button>
+              <button class="btn btn-danger" onclick="deleteMenuItem('${doc.id}', '${item.name}')">🗑️ Delete</button>
+            </div>
+            <div id="edit-form-${doc.id}" class="edit-form" style="display: none;">
+              <input id="edit-name-${doc.id}" value="${item.name}" placeholder="Name">
+              <input id="edit-description-${doc.id}" value="${item.description}" placeholder="Description">
+              <input id="edit-price-${doc.id}" type="number" step="0.01" value="${item.price}" placeholder="Price">
+              <input id="edit-emoji-${doc.id}" value="${item.emoji || ''}" placeholder="Emoji">
+              <div style="margin-top: 10px;">
+                <button class="btn btn-success" onclick="saveMenuItem('${doc.id}')">Save</button>
+                <button class="btn btn-secondary" onclick="cancelEditMenuItem('${doc.id}')">Cancel</button>
+              </div>
+            </div>
+          `;
+          menuDiv.appendChild(itemDiv);
+        });
+      } catch (err) {
+        console.error("Error loading admin menu items:", err);
+        showStatus("Failed to load menu items.", 'error');
+      }
+    }
+
+    async function loadAdminOrders(filter = 'all') {
+      if (!userData || userData.role !== 'admin' || !firebase || !firebase.firestore) return;
+      
+      try {
+        let query = firebase.firestore().collection('orders').orderBy('createdAt', 'desc');
+        
+        if (filter !== 'all') {
+          query = query.where('status', '==', filter);
+        }
+        
+        const snapshot = await query.get();
+        const ordersDiv = document.getElementById('admin-orders-list');
+        
+        if (snapshot.empty) {
+          ordersDiv.innerHTML = '<div class="empty-state"><p>No orders found.</p></div>';
+          return;
+        }
+
+        ordersDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const order = doc.data();
+          const orderDiv = document.createElement('div');
+          orderDiv.className = 'order-card';
+          
+          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>');
+          const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
+          const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
+          
+          orderDiv.innerHTML = `
+            <div class="order-header">
+              <div>
+                <strong>Order #${doc.id.slice(-6)}</strong><br>
+                <small style="color: #666;">${orderDate} ${orderTime}</small><br>
+                <small style="color: #666;">Customer: ${order.userEmail}</small>
+              </div>
+              <div class="order-status" style="background: ${getStatusColor(order.status || 'pending')};">
+                ${(order.status || 'pending').toUpperCase()}
+              </div>
+            </div>
+            <div style="margin: 15px 0;">
+              ${itemsList}
+            </div>
+            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">
+              Total: ${order.total.toFixed(2)}
+            </div>
+            <div class="order-actions">
+              <button class="btn btn-primary" onclick="updateOrderStatus('${doc.id}', 'pending')">📋 Pending</button>
+              <button class="btn btn-secondary" onclick="updateOrderStatus('${doc.id}', 'preparing')">👨‍🍳 Preparing</button>
+              <button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'completed')">✅ Completed</button>
+              <button class="btn btn-danger" onclick="updateOrderStatus('${doc.id}', 'cancelled')">❌ Cancel</button>
+            </div>
+          `;
+          ordersDiv.appendChild(orderDiv);
+        });
+      } catch (err) {
+        console.error("Error loading admin orders:", err);
+        showStatus("Failed to load orders.", 'error');
+      }
+    }
+
+    // Wait for Firebase to load
+    function waitForFirebase() {
+      return new Promise((resolve, reject) => {
+        let attempts = 0;
+        const maxAttempts = 50;
+        
+        function checkFirebase() {
+          attempts++;
+          
+          if (typeof firebase !== 'undefined' && firebase.apps !== undefined) {
+            console.log('Firebase loaded successfully!');
+            resolve();
+          } else if (attempts >= maxAttempts) {
+            console.error('Failed to load Firebase after maximum attempts');
+            reject(new Error('Firebase failed to load'));
+          } else {
+            console.log(`Waiting for Firebase... attempt ${attempts}`);
+            setTimeout(checkFirebase, 100);
+          }
+        }
+        
+        checkFirebase();
+      });
+    }
+
+    // Initialize Firebase and app
+    async function initializeApp() {
+      try {
+        await waitForFirebase();
+        
+        const firebaseConfig = {
+          apiKey: "AIzaSyCwgwgWwD_NLVQtvvQxb-vIwkvbfmG6imc",
+          authDomain: "bakery-f6650.firebaseapp.com",
+          projectId: "bakery-f6650",
+          storageBucket: "bakery-f6650.firebasestorage.app",
+          messagingSenderId: "300373370370",
+          appId: "1:300373370370:web:55ff7da416898ed065e91b",
+          measurementId: "G-C41TKNP37H"
+        };
+        
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        
+        console.log('Firebase initialized successfully!');
+
+        // Set up auth state listener
+        firebase.auth().onAuthStateChanged(handleAuthStateChange);
+        
+        updateCartCount();
+        
+      } catch (error) {
+        console.error('Failed to initialize Firebase:', error);
+        showStatus('Failed to load the application. Please refresh the page.', 'error');
+      }
+    }
+
+    // Auth state change handler
+    async function handleAuthStateChange(user) {
+      if (user) {
+        currentUser = user;
+        
+        try {
+          const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+          
+          if (!userDoc.exists) {
+            await firebase.firestore().collection('users').doc(user.uid).set({
+              email: user.email,
+              displayName: user.displayName || '',
+              photoURL: user.photoURL || '',
+              role: 'customer',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              authProvider: user.providerData[0]?.providerId || 'email'
+            });
+            userData = {
+              email: user.email,
+              displayName: user.displayName || '',
+              photoURL: user.photoURL || '',
+              role: 'customer',
+              authProvider: user.providerData[0]?.providerId || 'email'
+            };
+          } else {
+            userData = userDoc.data();
+          }
+
+          document.getElementById('signed-out-view').style.display = 'none';
+          document.getElementById('signed-in-view').style.display = 'block';
+          document.getElementById('user-email-display').textContent = userData.email;
+          document.getElementById('user-role-display').textContent = `Role: ${userData.role}`;
+          
+          const avatarDiv = document.getElementById('user-avatar');
+          if (userData.photoURL) {
+            avatarDiv.innerHTML = `<img src="${userData.photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" alt="Profile">`;
+          } else {
+            const initial = (userData.displayName || userData.email).charAt(0).toUpperCase();
+            avatarDiv.textContent = initial;
+            avatarDiv.style.background = '#d4691a';
+            avatarDiv.style.color = 'white';
+          }
+          
+          document.getElementById('orders-tab').style.display = 'block';
+          if (userData.role === 'admin') {
+            document.getElementById('admin-tab').style.display = 'block';
+          }
+
+          await loadMenuItems();
+          const welcomeName = userData.displayName || userData.email;
+          showStatus(`Welcome back, ${welcomeName}!`, 'success');
+        } catch (err) {
+          console.error("User data error:", err);
+          showStatus("There was a problem loading your account.", 'error');
+        }
+      } else {
+        currentUser = null;
+        userData = null;
+        
+        document.getElementById('signed-out-view').style.display = 'block';
+        document.getElementById('signed-in-view').style.display = 'none';
+        
+        document.getElementById('orders-tab').style.display = 'none';
+        document.getElementById('admin-tab').style.display = 'none';
+        
+        document.getElementById('menu').innerHTML = '<div class="empty-state"><p>Sign in to view our delicious menu items!</p></div>';
+        cart = [];
+        renderCart();
+        
+        switchTab('account');
+      }
+    }
+
+    // Event listeners
+    document.addEventListener('keypress', function(e) {
+      if (e.target.id === 'email' || e.target.id === 'password') {
+        if (e.key === 'Enter') {
+          signIn();
+        }
+      }
+    });
+
+    // Initialize app when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+      initializeApp();
+    }
+  </script>41TKNP37H"
+        };
+        
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        
+        console.log('Firebase initialized successfully!');
+
+        // Set up auth state listener
+        firebase.auth().onAuthStateChanged(handleAuthStateChange);
+        
+        updateCartCount();
+        
+      } catch (error) {
+        console.error('Failed to initialize Firebase:', error);
+        showStatus('Failed to load the application. Please refresh the page.', 'error');
+      }
+    }
+
+    // Helper functions
+    function showStatus(message, type = 'success') {
+      const statusDiv = document.getElementById('status-messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `status-message status-${type} fade-in`;
+      messageDiv.textContent = message;
+      statusDiv.appendChild(messageDiv);
+      
+      setTimeout(() => {
+        messageDiv.remove();
+      }, 5000);
+    }
+
+    function showLoading(buttonElement) {
+      const originalText = buttonElement.textContent;
+      buttonElement.innerHTML = '<span class="loading"></span> Loading...';
+      buttonElement.disabled = true;
+      return () => {
+        buttonElement.textContent = originalText;
+        buttonElement.disabled = false;
+      };
+    }
+
+    function updateCartCount() {
+      document.getElementById('cart-count').textContent = cart.length;
+    }
+
+    function getFriendlyError(error) {
+      if (!error?.code) return error.message;
+      switch (error.code) {
+        case 'auth/user-not-found': return 'No account found with this email.';
+        case 'auth/wrong-password': return 'Incorrect password.';
+        case 'auth/invalid-email': return 'Invalid email address.';
+        case 'auth/invalid-credential': return 'Invalid email or password.';
+        case 'auth/weak-password': return 'Password should be at least 6 characters.';
+        case 'auth/email-already-in-use': return 'An account with this email already exists.';
+        default: return error.message;
+      }
+    }
+
+    function getStatusColor(status) {
+      switch(status) {
+        case 'pending': return '#ffc107';
+        case 'preparing': return '#17a2b8';
+        case 'completed': return '#28a745';
+        case 'cancelled': return '#dc3545';
+        default: return '#6c757d';
+      }
+    }
+
+    // Tab functions
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+      
+      document.getElementById(tabName + '-tab').classList.add('active');
+      document.getElementById(tabName + '-panel').classList.add('active');
+      
+      if (tabName === 'orders' && currentUser) {
+        loadUserOrders();
+      } else if (tabName === 'admin' && userData?.role === 'admin') {
+        loadAdminMenuItems();
+        loadAdminOrders('all');
+      }
+    }
+
+    // Authentication functions
+    async function signInWithGoogle() {
+      const googleBtn = event.target;
+      const stopLoading = showLoading(googleBtn);
+
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope('email');
+        provider.addScope('profile');
+        
+        const result = await firebase.auth().signInWithPopup(provider);
+        showStatus(`Welcome ${result.user.displayName || result.user.email}!`, 'success');
+      } catch (error) {
+        console.error("Google sign in error:", error);
+        if (error.code === 'auth/popup-closed-by-user') {
+          showStatus("Sign in cancelled.", 'warning');
+        } else if (error.code === 'auth/popup-blocked') {
+          showStatus("Pop-up blocked! Please allow pop-ups and try again.", 'error');
+        } else {
+          showStatus("Google sign in failed. Please try again.", 'error');
+        }
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function signUp() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showStatus('Please enter both email and password.', 'warning');
+        return;
+      }
+
+      const signUpBtn = event.target;
+      const stopLoading = showLoading(signUpBtn);
+
+      try {
+        const result = await firebase.auth().createUserWithEmailAndPassword(email, password);
+        await firebase.firestore().collection('users').doc(result.user.uid).set({
+          email,
+          role: 'customer',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus("Account created successfully! Welcome to Sweet Dreams Bakery!", 'success');
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+      } catch (error) {
+        showStatus(getFriendlyError(error), 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function signIn() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showStatus('Please enter both email and password.', 'warning');
+        return;
