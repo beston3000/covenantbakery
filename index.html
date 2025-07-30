@@ -810,6 +810,7 @@
               <button class="btn btn-secondary" onclick="updateOrderStatus('${doc.id}', 'preparing')">👨‍🍳 Preparing</button>
               <button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'completed')">✅ Completed</button>
               <button class="btn btn-danger" onclick="updateOrderStatus('${doc.id}', 'cancelled')">❌ Cancel</button>
+              <button class="btn btn-danger" onclick="deleteOrder('${doc.id}', 'admin')" style="background: #8b0000;">🗑️ Delete Order</button>
             </div>
           `;
           ordersDiv.appendChild(orderDiv);
@@ -832,6 +833,47 @@
       } catch (err) {
         console.error("Failed to update order status:", err);
         showStatus("Failed to update order status.", 'error');
+      }
+    }
+
+    async function deleteOrder(orderId, userType) {
+      const confirmMessage = userType === 'admin' 
+        ? `Are you sure you want to permanently delete this order? This action cannot be undone.`
+        : `Are you sure you want to delete this order? This action cannot be undone.`;
+      
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+
+      try {
+        // If it's a user deletion, check if they own the order
+        if (userType === 'user') {
+          const orderDoc = await firebase.firestore().collection('orders').doc(orderId).get();
+          if (!orderDoc.exists) {
+            showStatus("Order not found.", 'error');
+            return;
+          }
+          
+          const orderData = orderDoc.data();
+          if (orderData.userId !== currentUser.uid) {
+            showStatus("You can only delete your own orders.", 'error');
+            return;
+          }
+        }
+
+        await firebase.firestore().collection('orders').doc(orderId).delete();
+        
+        showStatus("Order deleted successfully!", 'success');
+        
+        // Refresh the appropriate view
+        if (userType === 'admin') {
+          loadAdminOrders('all');
+        } else {
+          loadUserOrders();
+        }
+      } catch (err) {
+        console.error("Failed to delete order:", err);
+        showStatus("Failed to delete order. Please try again.", 'error');
       }
     }
 
