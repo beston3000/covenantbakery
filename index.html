@@ -220,7 +220,44 @@
       <p>Freshly baked goods made with love in Covenant Hills</p>
     </div>
 
-    <div id="status-messages"></div>
+    <div id="location-verification" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+      <div style="background: white; padding: 40px; border-radius: 20px; text-align: center; max-width: 500px; margin: 20px;">
+        <h2 style="color: #d4691a; margin-bottom: 20px;">📍 Location Verification Required</h2>
+        <p style="margin-bottom: 20px; color: #666; line-height: 1.6;">
+          Covenant Hills Bakery serves customers in Covenant Hills and Ladera Ranch, CA only. 
+          We need to verify your location to provide our services.
+        </p>
+        <div id="location-status" style="margin: 20px 0; font-weight: bold;"></div>
+        <button id="location-btn" class="btn btn-primary" onclick="requestLocation()" style="margin: 10px;">
+          📍 Share My Location
+        </button>
+        <p style="margin-top: 20px; font-size: 0.9rem; color: #888;">
+          Your location data is only used for verification and is not stored.
+        </p>
+      </div>
+    </div>
+
+    <div id="location-denied" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+      <div style="background: white; padding: 40px; border-radius: 20px; text-align: center; max-width: 500px; margin: 20px;">
+        <h2 style="color: #dc3545; margin-bottom: 20px;">❌ Service Area Restricted</h2>
+        <p style="margin-bottom: 20px; color: #666; line-height: 1.6;">
+          Sorry! Covenant Hills Bakery currently only serves customers in:
+        </p>
+        <ul style="text-align: left; margin: 20px 0; color: #333;">
+          <li><strong>Covenant Hills, CA</strong></li>
+          <li><strong>Ladera Ranch, CA</strong></li>
+        </ul>
+        <p style="margin-bottom: 20px; color: #666;">
+          We're working on expanding our delivery area. Please check back soon!
+        </p>
+        <button class="btn btn-secondary" onclick="checkLocationAgain()" style="margin-right: 10px;">
+          📍 Check Location Again
+        </button>
+        <a href="https://maps.google.com/search/bakeries+near+me" target="_blank" class="btn btn-primary">
+          🗺️ Find Local Bakeries
+        </a>
+      </div>
+    </div>
 
     <div class="tab-container">
       <div class="tab-navigation">
@@ -350,6 +387,8 @@
     let currentUser = null;
     let userData = null;
     let cart = [];
+    let locationVerified = false;
+    let locationCheckInProgress = false;
 
     // Firebase config
     const firebaseConfig = {
@@ -362,7 +401,167 @@
       measurementId: "G-C41TKNP37H"
     };
 
-    // Helper functions
+    // Location verification functions
+    function requestLocation() {
+      if (locationCheckInProgress) return;
+      
+      locationCheckInProgress = true;
+      const statusDiv = document.getElementById('location-status');
+      const locationBtn = document.getElementById('location-btn');
+      
+      statusDiv.innerHTML = '<span class="loading"></span> Checking your location...';
+      statusDiv.style.color = '#d4691a';
+      locationBtn.disabled = true;
+
+      if (!navigator.geolocation) {
+        showLocationError('Geolocation is not supported by your browser.');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        verifyLocation,
+        handleLocationError,
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 minutes
+        }
+      );
+    }
+
+    function verifyLocation(position) {
+      const { latitude, longitude } = position.coords;
+      
+      // Covenant Hills and Ladera Ranch approximate coordinates and boundaries
+      const allowedAreas = [
+        {
+          name: "Covenant Hills",
+          centerLat: 33.5567,
+          centerLng: -117.6648,
+          radius: 3 // miles
+        },
+        {
+          name: "Ladera Ranch", 
+          centerLat: 33.5549,
+          centerLng: -117.6419,
+          radius: 3 // miles
+        }
+      ];
+
+      let isInServiceArea = false;
+      let nearestArea = null;
+
+      for (const area of allowedAreas) {
+        const distance = calculateDistance(latitude, longitude, area.centerLat, area.centerLng);
+        if (distance <= area.radius) {
+          isInServiceArea = true;
+          nearestArea = area.name;
+          break;
+        }
+      }
+
+      locationCheckInProgress = false;
+
+      if (isInServiceArea) {
+        locationVerified = true;
+        showLocationSuccess(nearestArea);
+        hideLocationVerification();
+        showMainContent();
+      } else {
+        showLocationDenied();
+      }
+    }
+
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+      const R = 3959; // Earth's radius in miles
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function handleLocationError(error) {
+      locationCheckInProgress = false;
+      let errorMessage = '';
+      
+      switch(error.code) {
+        case error.PERMISSION_DENIED:
+          errorMessage = 'Location access denied. Please enable location services and refresh the page.';
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorMessage = 'Location information unavailable. Please try again.';
+          break;
+        case error.TIMEOUT:
+          errorMessage = 'Location request timed out. Please try again.';
+          break;
+        default:
+          errorMessage = 'An unknown error occurred while retrieving your location.';
+          break;
+      }
+      
+      showLocationError(errorMessage);
+    }
+
+    function showLocationError(message) {
+      const statusDiv = document.getElementById('location-status');
+      const locationBtn = document.getElementById('location-btn');
+      
+      statusDiv.textContent = message;
+      statusDiv.style.color = '#dc3545';
+      locationBtn.disabled = false;
+      locationBtn.textContent = '📍 Try Again';
+    }
+
+    function showLocationSuccess(area) {
+      const statusDiv = document.getElementById('location-status');
+      statusDiv.innerHTML = `✅ Location verified! Welcome to our ${area} service area.`;
+      statusDiv.style.color = '#28a745';
+    }
+
+    function showLocationVerification() {
+      document.getElementById('location-verification').style.display = 'flex';
+      document.getElementById('location-denied').style.display = 'none';
+      document.getElementById('main-content').style.display = 'none';
+    }
+
+    function hideLocationVerification() {
+      document.getElementById('location-verification').style.display = 'none';
+    }
+
+    function showLocationDenied() {
+      document.getElementById('location-verification').style.display = 'none';
+      document.getElementById('location-denied').style.display = 'flex';
+      document.getElementById('main-content').style.display = 'none';
+    }
+
+    function showMainContent() {
+      document.getElementById('main-content').style.display = 'block';
+      document.getElementById('location-verification').style.display = 'none';
+      document.getElementById('location-denied').style.display = 'none';
+    }
+
+    function checkLocationAgain() {
+      showLocationVerification();
+      // Reset button state
+      const locationBtn = document.getElementById('location-btn');
+      const statusDiv = document.getElementById('location-status');
+      locationBtn.disabled = false;
+      locationBtn.textContent = '📍 Share My Location';
+      statusDiv.textContent = '';
+      locationCheckInProgress = false;
+    }
+
+    // Modified functions to check location before allowing access
+    function requireLocationVerification() {
+      if (!locationVerified) {
+        showStatus('Please verify your location first to access this feature.', 'warning');
+        return false;
+      }
+      return true;
+    }
     function showStatus(message, type = 'success') {
       const statusDiv = document.getElementById('status-messages');
       const messageDiv = document.createElement('div');
@@ -399,6 +598,8 @@
 
     // Tab functions
     function switchTab(tabName) {
+      if (!requireLocationVerification()) return;
+      
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
       
@@ -415,6 +616,8 @@
 
     // Auth functions
     async function signInWithGoogle() {
+      if (!requireLocationVerification()) return;
+      
       const googleBtn = event.target;
       const stopLoading = showLoading(googleBtn);
 
@@ -445,6 +648,8 @@
     }
 
     async function signUp() {
+      if (!requireLocationVerification()) return;
+      
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
       
@@ -474,6 +679,8 @@
     }
 
     async function signIn() {
+      if (!requireLocationVerification()) return;
+      
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
       
@@ -506,6 +713,8 @@
 
     // Cart functions
     function addToCart(id, name, price, emoji) {
+      if (!requireLocationVerification()) return;
+      
       cart.push({ id, name, price, emoji });
       renderCart();
       updateCartCount();
@@ -551,6 +760,8 @@
     }
 
     async function checkout() {
+      if (!requireLocationVerification()) return;
+      
       if (!currentUser) {
         showStatus("Please sign in to place an order.", 'warning');
         switchTab('account');
@@ -1029,6 +1240,9 @@
         firebase.auth().onAuthStateChanged(handleAuthStateChange);
         updateCartCount();
         console.log('Firebase initialized successfully!');
+        
+        // Start location verification process
+        showLocationVerification();
       } catch (error) {
         console.error('Failed to initialize Firebase:', error);
         showStatus('Failed to load the application. Please refresh the page.', 'error');
