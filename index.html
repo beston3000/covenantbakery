@@ -427,6 +427,12 @@
       font-weight: 600;
       backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.3);
+      animation: slideInFromTop 0.5s ease;
+    }
+    
+    @keyframes slideInFromTop {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     
     .status-success { 
@@ -519,11 +525,29 @@
       border-radius: 15px;
       margin-top: 20px;
       border: 1px solid rgba(0, 0, 0, 0.1);
+      animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+      from { opacity: 0; max-height: 0; padding: 0 20px; }
+      to { opacity: 1; max-height: 500px; padding: 20px; }
     }
     
     .edit-form input {
       margin-bottom: 15px;
       width: 100%;
+    }
+    
+    .admin-action-success {
+      background: rgba(40, 167, 69, 0.1);
+      border: 2px solid #28a745;
+      animation: successPulse 2s ease;
+    }
+    
+    @keyframes successPulse {
+      0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+      50% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
     }
     
     @media (max-width: 768px) {
@@ -578,6 +602,8 @@
         </button>
       </div>
     </div>
+
+    <div id="status-messages"></div>
 
     <div id="main-content" style="display: none;">
     <div class="tab-container">
@@ -700,6 +726,7 @@
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 
@@ -883,6 +910,8 @@
       }
       return true;
     }
+
+    // Helper functions
     function showStatus(message, type = 'success') {
       const statusDiv = document.getElementById('status-messages');
       const messageDiv = document.createElement('div');
@@ -915,6 +944,15 @@
         case 'cancelled': return '#dc3545';
         default: return '#6c757d';
       }
+    }
+
+    // IMPROVED: Visual feedback functions for admin actions
+    function showItemUpdateSuccess(itemId) {
+      const itemDiv = document.querySelector(`#edit-form-${itemId}`).closest('.admin-menu-item');
+      itemDiv.classList.add('admin-action-success');
+      setTimeout(() => {
+        itemDiv.classList.remove('admin-action-success');
+      }, 2000);
     }
 
     // Tab functions
@@ -1118,7 +1156,7 @@
       }
     }
 
-    // Admin functions
+    // IMPROVED Admin functions with better responsiveness
     function toggleAdminView(view) {
       if (view === 'menu') {
         document.getElementById('admin-menu-section').style.display = 'block';
@@ -1143,6 +1181,7 @@
       document.getElementById('item-emoji').value = '';
     }
 
+    // IMPROVED: More responsive submitNewItem function
     async function submitNewItem() {
       const name = document.getElementById('item-name')?.value?.trim() || '';
       const description = document.getElementById('item-description')?.value?.trim() || '';
@@ -1154,6 +1193,9 @@
         return;
       }
 
+      const submitBtn = event.target;
+      const stopLoading = showLoading(submitBtn);
+
       try {
         await firebase.firestore().collection('menuItems').add({
           name, 
@@ -1164,13 +1206,20 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        showStatus(`${name} added to menu successfully!`, 'success');
+        showStatus(`✅ ${name} added to menu successfully!`, 'success');
         hideAddItemForm();
-        loadAdminMenuItems();
-        await loadMenuItems();
+        
+        // Refresh both views simultaneously for instant update
+        await Promise.all([
+          loadAdminMenuItems(),
+          loadMenuItems()
+        ]);
+        
       } catch (err) {
         console.error("Failed to add item:", err);
-        showStatus("Failed to add menu item. Please try again.", 'error');
+        showStatus("❌ Failed to add menu item. Please try again.", 'error');
+      } finally {
+        stopLoading();
       }
     }
 
@@ -1216,8 +1265,8 @@
               <input id="edit-price-${doc.id}" type="number" step="0.01" value="${item.price}" placeholder="Price">
               <input id="edit-emoji-${doc.id}" value="${item.emoji || ''}" placeholder="Emoji">
               <div style="margin-top: 10px;">
-                <button class="btn btn-success" onclick="saveMenuItem('${doc.id}')">Save</button>
-                <button class="btn btn-secondary" onclick="cancelEditMenuItem('${doc.id}')">Cancel</button>
+                <button class="btn btn-success" onclick="saveMenuItem('${doc.id}')">💾 Save</button>
+                <button class="btn btn-secondary" onclick="cancelEditMenuItem('${doc.id}')">❌ Cancel</button>
               </div>
             </div>
           `;
@@ -1237,6 +1286,7 @@
       document.getElementById(`edit-form-${itemId}`).style.display = 'none';
     }
 
+    // IMPROVED: Much more responsive saveMenuItem function
     async function saveMenuItem(itemId) {
       const name = document.getElementById(`edit-name-${itemId}`).value.trim();
       const description = document.getElementById(`edit-description-${itemId}`).value.trim();
@@ -1248,51 +1298,92 @@
         return;
       }
 
+      // Show loading state on save button
+      const saveBtn = event.target;
+      const originalText = saveBtn.textContent;
+      saveBtn.innerHTML = '<span class="loading"></span> Saving...';
+      saveBtn.disabled = true;
+
       try {
         await firebase.firestore().collection('menuItems').doc(itemId).update({
           name, description, price, emoji,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        showStatus("Menu item updated successfully!", 'success');
+        // INSTANT UI FEEDBACK
+        showStatus("✅ Menu item updated successfully!", 'success');
+        showItemUpdateSuccess(itemId);
+        
+        // Hide edit form immediately
         cancelEditMenuItem(itemId);
-        loadAdminMenuItems();
-        loadMenuItems();
+        
+        // Refresh both admin and customer menu views simultaneously
+        await Promise.all([
+          loadAdminMenuItems(),
+          loadMenuItems()
+        ]);
+        
       } catch (err) {
         console.error("Failed to update item:", err);
-        showStatus("Failed to update menu item.", 'error');
+        showStatus("❌ Failed to update menu item.", 'error');
+        
+        // Reset button state on error
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
       }
     }
 
+    // IMPROVED: More responsive toggleItemStock function
     async function toggleItemStock(itemId, inStock) {
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
       try {
         await firebase.firestore().collection('menuItems').doc(itemId).update({
           inStock,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        showStatus(`Item ${inStock ? 'restocked' : 'marked out of stock'}!`, 'success');
-        loadAdminMenuItems();
-        loadMenuItems();
+        showStatus(`✅ Item ${inStock ? 'restocked' : 'marked out of stock'}!`, 'success');
+        
+        // Refresh both views for instant update
+        await Promise.all([
+          loadAdminMenuItems(),
+          loadMenuItems()
+        ]);
+        
       } catch (err) {
         console.error("Failed to update stock:", err);
-        showStatus("Failed to update stock status.", 'error');
+        showStatus("❌ Failed to update stock status.", 'error');
+      } finally {
+        stopLoading();
       }
     }
 
+    // IMPROVED: More responsive deleteMenuItem function
     async function deleteMenuItem(itemId, itemName) {
       if (!confirm(`Are you sure you want to delete "${itemName}"? This action cannot be undone.`)) {
         return;
       }
 
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
       try {
         await firebase.firestore().collection('menuItems').doc(itemId).delete();
-        showStatus(`"${itemName}" deleted successfully.`, 'success');
-        loadAdminMenuItems();
-        loadMenuItems();
+        showStatus(`✅ "${itemName}" deleted successfully.`, 'success');
+        
+        // Refresh both views for instant update
+        await Promise.all([
+          loadAdminMenuItems(),
+          loadMenuItems()
+        ]);
+        
       } catch (err) {
         console.error("Failed to delete item:", err);
-        showStatus("Failed to delete menu item.", 'error');
+        showStatus("❌ Failed to delete menu item.", 'error');
+      } finally {
+        stopLoading();
       }
     }
 
@@ -1320,7 +1411,7 @@
           const orderDiv = document.createElement('div');
           orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
           
-          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>');
+          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>');
           const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
           const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
           
@@ -1336,7 +1427,7 @@
               </div>
             </div>
             <div style="margin: 15px 0;">${itemsList}</div>
-            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: ${order.total.toFixed(2)}</div>
+            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: $${order.total.toFixed(2)}</div>
             <div class="order-actions">
               <button class="btn btn-primary" onclick="updateOrderStatus('${doc.id}', 'pending')">📋 Pending</button>
               <button class="btn btn-secondary" onclick="updateOrderStatus('${doc.id}', 'preparing')">👨‍🍳 Preparing</button>
@@ -1353,21 +1444,31 @@
       }
     }
 
+    // IMPROVED: More responsive updateOrderStatus function
     async function updateOrderStatus(orderId, newStatus) {
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
       try {
         await firebase.firestore().collection('orders').doc(orderId).update({
           status: newStatus,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        showStatus(`Order status updated to ${newStatus}!`, 'success');
+        showStatus(`✅ Order status updated to ${newStatus}!`, 'success');
+        
+        // Instantly refresh the orders view
         loadAdminOrders('all');
+        
       } catch (err) {
         console.error("Failed to update order status:", err);
-        showStatus("Failed to update order status.", 'error');
+        showStatus("❌ Failed to update order status.", 'error');
+      } finally {
+        stopLoading();
       }
     }
 
+    // IMPROVED: More responsive deleteOrder function
     async function deleteOrder(orderId, userType) {
       const confirmMessage = userType === 'admin' 
         ? `Are you sure you want to permanently delete this order? This action cannot be undone.`
@@ -1376,6 +1477,9 @@
       if (!confirm(confirmMessage)) {
         return;
       }
+
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
 
       try {
         // If it's a user deletion, check if they own the order
@@ -1395,9 +1499,9 @@
 
         await firebase.firestore().collection('orders').doc(orderId).delete();
         
-        showStatus("Order deleted successfully!", 'success');
+        showStatus("✅ Order deleted successfully!", 'success');
         
-        // Refresh the appropriate view
+        // Instantly refresh the appropriate view
         if (userType === 'admin') {
           loadAdminOrders('all');
         } else {
@@ -1405,7 +1509,9 @@
         }
       } catch (err) {
         console.error("Failed to delete order:", err);
-        showStatus("Failed to delete order. Please try again.", 'error');
+        showStatus("❌ Failed to delete order. Please try again.", 'error');
+      } finally {
+        stopLoading();
       }
     }
 
@@ -1430,7 +1536,7 @@
               <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
               <div class="menu-item-info">
                 <h3>${item.name}</h3>
-                <div class="menu-item-price">${item.price.toFixed(2)}</div>
+                <div class="menu-item-price">$${item.price.toFixed(2)}</div>
               </div>
             </div>
             <div class="menu-item-description">${item.description}</div>
@@ -1467,7 +1573,7 @@
           const orderDiv = document.createElement('div');
           orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
           
-          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>');
+          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>');
           const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
           
           orderDiv.innerHTML = `
@@ -1478,7 +1584,10 @@
               </div>
             </div>
             <div style="margin: 10px 0;">${itemsList}</div>
-            <div style="font-weight: bold; color: #28a745;">Total: ${order.total.toFixed(2)}</div>
+            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: $${order.total.toFixed(2)}</div>
+            <div style="text-align: right;">
+              <button class="btn btn-danger" onclick="deleteOrder('${doc.id}', 'user')" style="padding: 8px 15px; font-size: 0.9rem;">🗑️ Delete Order</button>
+            </div>
           `;
           ordersDiv.appendChild(orderDiv);
         });
