@@ -141,7 +141,66 @@
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .admin-menu-item {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+      border: 1px solid #f0f0f0;
+      position: relative;
+    }
+    .admin-menu-item.out-of-stock {
+      opacity: 0.6;
+      border: 2px solid #dc3545;
+    }
+    .admin-menu-item .item-controls {
+      display: flex;
+      gap: 5px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+    .admin-menu-item .item-controls .btn {
+      padding: 8px 12px;
+      font-size: 0.9rem;
+    }
+    .stock-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+    .stock-indicator.in-stock {
+      background: #d4edda;
+      color: #155724;
+    }
+    .stock-indicator.out-of-stock {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .order-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+    .order-actions .btn {
+      padding: 8px 15px;
+      font-size: 0.9rem;
+    }
+    .edit-form {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+      border: 1px solid #e0e0e0;
+    }
+    .edit-form input {
+      margin-bottom: 10px;
+      width: 100%;
+    }
     @media (max-width: 768px) {
       .header h1 { font-size: 2rem; }
       .input-group { flex-direction: column; }
@@ -232,7 +291,51 @@
 
         <div id="admin-panel" class="tab-panel">
           <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">👑 Admin Dashboard</h2>
-          <p>Admin features coming soon!</p>
+          
+          <!-- Admin Controls -->
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="margin-bottom: 20px;">Admin Controls</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+              <button class="btn btn-success" onclick="showAddItemForm()">➕ Add New Item</button>
+              <button class="btn btn-secondary" onclick="toggleAdminView('menu')">📦 Manage Menu</button>
+              <button class="btn btn-secondary" onclick="toggleAdminView('orders')">📋 Manage Orders</button>
+            </div>
+            
+            <!-- Add Item Form -->
+            <div id="add-item-form" style="display:none; background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
+              <h4 style="margin-bottom: 15px;">Add New Bakery Item</h4>
+              <input id="item-name" placeholder="Item Name (e.g., Chocolate Croissant)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <input id="item-description" placeholder="Description" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <input id="item-price" type="number" step="0.01" placeholder="Price (e.g., 4.99)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <input id="item-emoji" placeholder="Emoji (e.g., 🥐)" style="margin-bottom: 15px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <div>
+                <button class="btn btn-success" onclick="submitNewItem()">Add Item</button>
+                <button class="btn btn-secondary" onclick="hideAddItemForm()">Cancel</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Menu Management Section -->
+          <div id="admin-menu-section">
+            <h3 style="color: #d4691a; margin-bottom: 15px;">📦 Menu Management</h3>
+            <div id="admin-menu-items" class="menu-grid">
+              <div class="empty-state"><p>Loading menu items...</p></div>
+            </div>
+          </div>
+          
+          <!-- Orders Management Section -->
+          <div id="admin-orders-section" style="display: none;">
+            <h3 style="color: #d4691a; margin-bottom: 15px;">📋 Order Management</h3>
+            <div style="margin-bottom: 20px;">
+              <button class="btn btn-secondary" onclick="loadAdminOrders('all')">All Orders</button>
+              <button class="btn btn-primary" onclick="loadAdminOrders('pending')">Pending</button>
+              <button class="btn btn-success" onclick="loadAdminOrders('completed')">Completed</button>
+              <button class="btn btn-danger" onclick="loadAdminOrders('cancelled')">Cancelled</button>
+            </div>
+            <div id="admin-orders-list">
+              <div class="empty-state"><p>Loading orders...</p></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -289,6 +392,9 @@
       
       if (tabName === 'orders' && currentUser) {
         loadUserOrders();
+      } else if (tabName === 'admin' && userData?.role === 'admin') {
+        loadAdminMenuItems();
+        loadAdminOrders('all');
       }
     }
 
@@ -451,6 +557,255 @@
         showStatus("Failed to place order. Please try again.", 'error');
       } finally {
         stopLoading();
+      }
+    }
+
+    // Admin functions
+    function toggleAdminView(view) {
+      if (view === 'menu') {
+        document.getElementById('admin-menu-section').style.display = 'block';
+        document.getElementById('admin-orders-section').style.display = 'none';
+        loadAdminMenuItems();
+      } else if (view === 'orders') {
+        document.getElementById('admin-menu-section').style.display = 'none';
+        document.getElementById('admin-orders-section').style.display = 'block';
+        loadAdminOrders('all');
+      }
+    }
+
+    function showAddItemForm() {
+      document.getElementById('add-item-form').style.display = 'block';
+    }
+
+    function hideAddItemForm() {
+      document.getElementById('add-item-form').style.display = 'none';
+      document.getElementById('item-name').value = '';
+      document.getElementById('item-description').value = '';
+      document.getElementById('item-price').value = '';
+      document.getElementById('item-emoji').value = '';
+    }
+
+    async function submitNewItem() {
+      const name = document.getElementById('item-name')?.value?.trim() || '';
+      const description = document.getElementById('item-description')?.value?.trim() || '';
+      const price = parseFloat(document.getElementById('item-price')?.value || 0);
+      const emoji = document.getElementById('item-emoji')?.value?.trim() || '';
+
+      if (!name || !description || isNaN(price) || price <= 0 || !emoji) {
+        showStatus("Please fill in all fields with valid information.", 'warning');
+        return;
+      }
+
+      try {
+        await firebase.firestore().collection('menuItems').add({
+          name, 
+          description, 
+          price, 
+          emoji, 
+          inStock: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`${name} added to menu successfully!`, 'success');
+        hideAddItemForm();
+        loadAdminMenuItems();
+        await loadMenuItems();
+      } catch (err) {
+        console.error("Failed to add item:", err);
+        showStatus("Failed to add menu item. Please try again.", 'error');
+      }
+    }
+
+    async function loadAdminMenuItems() {
+      if (!userData || userData.role !== 'admin') return;
+      
+      try {
+        const snapshot = await firebase.firestore().collection('menuItems').orderBy('createdAt', 'desc').get();
+        const menuDiv = document.getElementById('admin-menu-items');
+        
+        if (snapshot.empty) {
+          menuDiv.innerHTML = '<div class="empty-state"><p>No menu items yet.</p></div>';
+          return;
+        }
+
+        menuDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          const itemDiv = document.createElement('div');
+          itemDiv.className = `admin-menu-item ${!item.inStock ? 'out-of-stock' : ''}`;
+          itemDiv.innerHTML = `
+            <div class="stock-indicator ${item.inStock ? 'in-stock' : 'out-of-stock'}">
+              ${item.inStock ? 'In Stock' : 'Out of Stock'}
+            </div>
+            <div class="menu-item-header">
+              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
+              <div class="menu-item-info">
+                <h3>${item.name}</h3>
+                <div class="menu-item-price">${item.price.toFixed(2)}</div>
+              </div>
+            </div>
+            <div class="menu-item-description">${item.description}</div>
+            <div class="item-controls">
+              <button class="btn btn-primary" onclick="editMenuItem('${doc.id}')">✏️ Edit</button>
+              <button class="btn ${item.inStock ? 'btn-danger' : 'btn-success'}" onclick="toggleItemStock('${doc.id}', ${!item.inStock})">
+                ${item.inStock ? '❌ Out of Stock' : '✅ In Stock'}
+              </button>
+              <button class="btn btn-danger" onclick="deleteMenuItem('${doc.id}', '${item.name}')">🗑️ Delete</button>
+            </div>
+            <div id="edit-form-${doc.id}" class="edit-form" style="display: none;">
+              <input id="edit-name-${doc.id}" value="${item.name}" placeholder="Name">
+              <input id="edit-description-${doc.id}" value="${item.description}" placeholder="Description">
+              <input id="edit-price-${doc.id}" type="number" step="0.01" value="${item.price}" placeholder="Price">
+              <input id="edit-emoji-${doc.id}" value="${item.emoji || ''}" placeholder="Emoji">
+              <div style="margin-top: 10px;">
+                <button class="btn btn-success" onclick="saveMenuItem('${doc.id}')">Save</button>
+                <button class="btn btn-secondary" onclick="cancelEditMenuItem('${doc.id}')">Cancel</button>
+              </div>
+            </div>
+          `;
+          menuDiv.appendChild(itemDiv);
+        });
+      } catch (err) {
+        console.error("Error loading admin menu items:", err);
+        showStatus("Failed to load menu items.", 'error');
+      }
+    }
+
+    function editMenuItem(itemId) {
+      document.getElementById(`edit-form-${itemId}`).style.display = 'block';
+    }
+
+    function cancelEditMenuItem(itemId) {
+      document.getElementById(`edit-form-${itemId}`).style.display = 'none';
+    }
+
+    async function saveMenuItem(itemId) {
+      const name = document.getElementById(`edit-name-${itemId}`).value.trim();
+      const description = document.getElementById(`edit-description-${itemId}`).value.trim();
+      const price = parseFloat(document.getElementById(`edit-price-${itemId}`).value);
+      const emoji = document.getElementById(`edit-emoji-${itemId}`).value.trim();
+
+      if (!name || !description || isNaN(price) || price <= 0) {
+        showStatus("Please fill in all fields with valid information.", 'warning');
+        return;
+      }
+
+      try {
+        await firebase.firestore().collection('menuItems').doc(itemId).update({
+          name, description, price, emoji,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus("Menu item updated successfully!", 'success');
+        cancelEditMenuItem(itemId);
+        loadAdminMenuItems();
+        loadMenuItems();
+      } catch (err) {
+        console.error("Failed to update item:", err);
+        showStatus("Failed to update menu item.", 'error');
+      }
+    }
+
+    async function toggleItemStock(itemId, inStock) {
+      try {
+        await firebase.firestore().collection('menuItems').doc(itemId).update({
+          inStock,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`Item ${inStock ? 'restocked' : 'marked out of stock'}!`, 'success');
+        loadAdminMenuItems();
+        loadMenuItems();
+      } catch (err) {
+        console.error("Failed to update stock:", err);
+        showStatus("Failed to update stock status.", 'error');
+      }
+    }
+
+    async function deleteMenuItem(itemId, itemName) {
+      if (!confirm(`Are you sure you want to delete "${itemName}"? This action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        await firebase.firestore().collection('menuItems').doc(itemId).delete();
+        showStatus(`"${itemName}" deleted successfully.`, 'success');
+        loadAdminMenuItems();
+        loadMenuItems();
+      } catch (err) {
+        console.error("Failed to delete item:", err);
+        showStatus("Failed to delete menu item.", 'error');
+      }
+    }
+
+    async function loadAdminOrders(filter = 'all') {
+      if (!userData || userData.role !== 'admin') return;
+      
+      try {
+        let query = firebase.firestore().collection('orders').orderBy('createdAt', 'desc');
+        
+        if (filter !== 'all') {
+          query = query.where('status', '==', filter);
+        }
+        
+        const snapshot = await query.get();
+        const ordersDiv = document.getElementById('admin-orders-list');
+        
+        if (snapshot.empty) {
+          ordersDiv.innerHTML = '<div class="empty-state"><p>No orders found.</p></div>';
+          return;
+        }
+
+        ordersDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const order = doc.data();
+          const orderDiv = document.createElement('div');
+          orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
+          
+          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>');
+          const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
+          const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
+          
+          orderDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;">
+              <div>
+                <strong>Order #${doc.id.slice(-6)}</strong><br>
+                <small style="color: #666;">${orderDate} ${orderTime}</small><br>
+                <small style="color: #666;">Customer: ${order.userEmail}</small>
+              </div>
+              <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${getStatusColor(order.status || 'pending')}; color: white;">
+                ${(order.status || 'pending').toUpperCase()}
+              </div>
+            </div>
+            <div style="margin: 15px 0;">${itemsList}</div>
+            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: ${order.total.toFixed(2)}</div>
+            <div class="order-actions">
+              <button class="btn btn-primary" onclick="updateOrderStatus('${doc.id}', 'pending')">📋 Pending</button>
+              <button class="btn btn-secondary" onclick="updateOrderStatus('${doc.id}', 'preparing')">👨‍🍳 Preparing</button>
+              <button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'completed')">✅ Completed</button>
+              <button class="btn btn-danger" onclick="updateOrderStatus('${doc.id}', 'cancelled')">❌ Cancel</button>
+            </div>
+          `;
+          ordersDiv.appendChild(orderDiv);
+        });
+      } catch (err) {
+        console.error("Error loading admin orders:", err);
+        showStatus("Failed to load orders.", 'error');
+      }
+    }
+
+    async function updateOrderStatus(orderId, newStatus) {
+      try {
+        await firebase.firestore().collection('orders').doc(orderId).update({
+          status: newStatus,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`Order status updated to ${newStatus}!`, 'success');
+        loadAdminOrders('all');
+      } catch (err) {
+        console.error("Failed to update order status:", err);
+        showStatus("Failed to update order status.", 'error');
       }
     }
 
