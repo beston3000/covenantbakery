@@ -1383,7 +1383,10 @@
 
             await loadMenuItems();
             const welcomeName = userData.displayName || userData.email;
-            showStatus(`Welcome back, ${welcomeName}!`, 'success');
+            // Only show welcome message if this is not the initial page load
+            if (document.readyState === 'complete') {
+              showStatus(`Welcome back, ${welcomeName}!`, 'success');
+            }
           } catch (err) {
             console.error("User data error:", err);
             showStatus("There was a problem loading your account.", 'error');
