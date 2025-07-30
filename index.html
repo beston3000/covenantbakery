@@ -1610,8 +1610,6 @@
           }
           
           document.getElementById('orders-tab').style.display = 'block';
-          // Always show About tab since it's informational
-          document.getElementById('about-tab').style.display = 'block';
           if (userData.role === 'admin') {
             document.getElementById('admin-tab').style.display = 'block';
           }
@@ -1625,8 +1623,6 @@
           document.getElementById('signed-in-view').style.display = 'none';
           document.getElementById('orders-tab').style.display = 'none';
           document.getElementById('admin-tab').style.display = 'none';
-          // Always show About tab since it's informational
-          document.getElementById('about-tab').style.display = 'block';
           
           document.getElementById('menu').innerHTML = '<div class="empty-state"><p>Sign in to view our delicious menu items!</p></div>';
           cart = [];
