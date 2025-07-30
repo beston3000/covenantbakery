@@ -550,6 +550,20 @@
       100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
     }
     
+    /* Venmo Button Styling */
+    #checkout-section {
+      transition: all 0.3s ease;
+    }
+    
+    .venmo-button {
+      transition: all 0.3s ease;
+    }
+    
+    .venmo-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(61, 149, 206, 0.6);
+    }
+    
     @media (max-width: 768px) {
       .header h1 { font-size: 2.5rem; }
       .input-group { flex-direction: column; }
@@ -665,8 +679,30 @@
           <div id="cart">
             <div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>
           </div>
-          <div style="text-align: center; margin-top: 20px;">
-            <button class="btn btn-success" onclick="checkout()" id="checkout-btn" style="font-size: 1.2rem; padding: 15px 30px;">🛍️ Checkout</button>
+          <div id="checkout-section" style="display: none; margin-top: 30px;">
+            <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px;">
+              <h3 style="margin-bottom: 15px; font-family: 'Playfair Display', serif;">💳 Payment Instructions</h3>
+              <p style="margin-bottom: 20px; opacity: 0.9;">To complete your order, please send payment via Venmo:</p>
+              
+              <!-- Venmo Payment Button -->
+              <a href="https://venmo.com/YOUR_MOMS_VENMO_USERNAME" target="_blank" style="display: inline-block; background: #3D95CE; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin: 10px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(61, 149, 206, 0.4);">
+                📱 Pay with Venmo
+              </a>
+              
+              <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 15px; margin-top: 20px;">
+                <p style="margin-bottom: 10px;"><strong>Venmo Username:</strong> @YOUR_MOMS_VENMO_USERNAME</p>
+                <p style="margin-bottom: 15px;"><strong>Amount:</strong> $<span id="venmo-total">0.00</span></p>
+                <p style="font-size: 0.9rem; opacity: 0.8;">⚠️ Please include your order details in the Venmo note!</p>
+              </div>
+            </div>
+            
+            <!-- Order Confirmation -->
+            <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; text-align: center;">
+              <h4 style="color: #d4691a; margin-bottom: 15px;">📋 After Payment</h4>
+              <p style="margin-bottom: 20px; color: #666;">Once you've sent the Venmo payment, click below to submit your order:</p>
+              <button class="btn btn-success" onclick="submitVenmoOrder()" id="submit-order-btn" style="font-size: 1.2rem; padding: 15px 30px;">✅ Confirm Order Placed</button>
+              <p style="margin-top: 15px; font-size: 0.9rem; color: #888;">We'll confirm receipt of payment and prepare your order!</p>
+            </div>
           </div>
         </div>
 
@@ -716,9 +752,10 @@
             <h3 style="color: #d4691a; margin-bottom: 15px;">📋 Order Management</h3>
             <div style="margin-bottom: 20px;">
               <button class="btn btn-secondary" onclick="loadAdminOrders('all')">All Orders</button>
-              <button class="btn btn-primary" onclick="loadAdminOrders('pending')">Pending</button>
-              <button class="btn btn-success" onclick="loadAdminOrders('completed')">Completed</button>
-              <button class="btn btn-danger" onclick="loadAdminOrders('cancelled')">Cancelled</button>
+              <button class="btn" onclick="loadAdminOrders('pending-payment')" style="background: #ff9800; color: white;">💳 Awaiting Payment</button>
+              <button class="btn btn-primary" onclick="loadAdminOrders('pending')">📋 Pending</button>
+              <button class="btn btn-success" onclick="loadAdminOrders('completed')">✅ Completed</button>
+              <button class="btn btn-danger" onclick="loadAdminOrders('cancelled')">❌ Cancelled</button>
             </div>
             <div id="admin-orders-list">
               <div class="empty-state"><p>Loading orders...</p></div>
@@ -935,9 +972,10 @@
       document.getElementById('cart-count').textContent = cart.length;
     }
 
-    // Helper function to get status color - FIXED
+    // Helper function to get status color - UPDATED for Venmo
     function getStatusColor(status) {
       switch (status) {
+        case 'pending-payment': return '#ff9800';
         case 'pending': return '#ffc107';
         case 'preparing': return '#17a2b8';
         case 'completed': return '#28a745';
@@ -1093,9 +1131,15 @@
       
       if (cart.length === 0) {
         cartDiv.innerHTML = '<div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>';
+        // Hide checkout section when cart is empty
+        document.getElementById('checkout-section').style.display = 'none';
         updateCartCount();
         return;
       }
+
+      // Show checkout section when cart has items
+      document.getElementById('checkout-section').style.display = 'block';
+      resetCheckoutUI(); // Reset to initial state
 
       let total = 0;
       let cartHTML = '';
@@ -1106,19 +1150,20 @@
           <div class="cart-item">
             <div>
               <span style="font-size: 1.5rem; margin-right: 10px;">${item.emoji}</span>
-              <strong>${item.name}</strong> - $${item.price.toFixed(2)}
+              <strong>${item.name}</strong> - ${item.price.toFixed(2)}
             </div>
             <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" onclick="removeFromCart(${index})">Remove</button>
           </div>
         `;
       });
       
-      cartHTML += `<div class="cart-total">Total: $${total.toFixed(2)}</div>`;
+      cartHTML += `<div class="cart-total">Total: ${total.toFixed(2)}</div>`;
       cartDiv.innerHTML = cartHTML;
       updateCartCount();
     }
 
-    async function checkout() {
+    // UPDATED: Simple Venmo-based checkout functions
+    async function submitVenmoOrder() {
       if (!requireLocationVerification()) return;
       
       if (!currentUser) {
@@ -1132,27 +1177,73 @@
         return;
       }
 
-      const checkoutBtn = document.getElementById('checkout-btn');
-      const stopLoading = showLoading(checkoutBtn);
+      const submitBtn = document.getElementById('submit-order-btn');
+      const stopLoading = showLoading(submitBtn);
 
       try {
+        // Generate a simple order ID
+        const orderId = 'ORDER-' + Date.now().toString().slice(-6);
+        
         await firebase.firestore().collection('orders').add({
           userId: currentUser.uid,
           userEmail: userData.email,
           items: cart,
           total: cart.reduce((sum, item) => sum + item.price, 0),
-          status: 'pending',
+          status: 'pending-payment',
+          paymentMethod: 'venmo',
+          orderId: orderId,
+          customerInstructions: 'Payment via Venmo - pending verification',
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        showStatus("Order placed successfully! 🎉", 'success');
+        // Clear cart and show success
         cart = [];
         renderCart();
+        
+        showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
+        
+        // Show confirmation message
+        document.getElementById('checkout-section').innerHTML = `
+          <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
+            <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
+            <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
+            <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
+            <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
+          </div>
+        `;
+        
       } catch (err) {
-        console.error("Checkout error:", err);
-        showStatus("Failed to place order. Please try again.", 'error');
+        console.error("Order submission error:", err);
+        showStatus("Failed to submit order. Please try again.", 'error');
       } finally {
         stopLoading();
+      }
+    }
+
+    function updateVenmoTotal() {
+      const total = cart.reduce((sum, item) => sum + item.price, 0);
+      const venmoTotalElement = document.getElementById('venmo-total');
+      if (venmoTotalElement) {
+        venmoTotalElement.textContent = total.toFixed(2);
+      }
+    }
+
+    function generateOrderSummary() {
+      const orderItems = cart.map(item => `${item.emoji} ${item.name} (${item.price.toFixed(2)})`).join(', ');
+      const total = cart.reduce((sum, item) => sum + item.price, 0);
+      return `Covenant Hills Bakery Order - ${orderItems} - Total: ${total.toFixed(2)}`;
+    }
+
+    // Update the Venmo link with order details
+    function updateVenmoLink() {
+      const venmoLink = document.querySelector('a[href*="venmo.com"]');
+      if (venmoLink && cart.length > 0) {
+        const total = cart.reduce((sum, item) => sum + item.price, 0);
+        const orderSummary = generateOrderSummary();
+        const encodedNote = encodeURIComponent(orderSummary);
+        
+        // Update the link to include amount and note
+        venmoLink.href = `https://venmo.com/YOUR_MOMS_VENMO_USERNAME?txn=pay&amount=${total.toFixed(2)}&note=${encodedNote}`;
       }
     }
 
@@ -1411,25 +1502,38 @@
           const orderDiv = document.createElement('div');
           orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
           
-          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>');
+          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>');
           const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
           const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
+          
+          // Different display for Venmo orders
+          const paymentInfo = order.paymentMethod === 'venmo' 
+            ? `<small style="color: #3D95CE;">💳 Venmo Payment</small>` 
+            : `<small style="color: #666;">Payment: ${order.paymentMethod || 'N/A'}</small>`;
+          
+          // Special handling for pending-payment status
+          const statusColor = order.status === 'pending-payment' ? '#ff9800' : getStatusColor(order.status || 'pending');
+          const statusText = order.status === 'pending-payment' ? 'AWAITING PAYMENT' : (order.status || 'pending').toUpperCase();
           
           orderDiv.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;">
               <div>
-                <strong>Order #${doc.id.slice(-6)}</strong><br>
+                <strong>Order #${order.orderId || doc.id.slice(-6)}</strong><br>
                 <small style="color: #666;">${orderDate} ${orderTime}</small><br>
-                <small style="color: #666;">Customer: ${order.userEmail}</small>
+                <small style="color: #666;">Customer: ${order.userEmail}</small><br>
+                ${paymentInfo}
               </div>
-              <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${getStatusColor(order.status || 'pending')}; color: white;">
-                ${(order.status || 'pending').toUpperCase()}
+              <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${statusColor}; color: white;">
+                ${statusText}
               </div>
             </div>
             <div style="margin: 15px 0;">${itemsList}</div>
-            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: $${order.total.toFixed(2)}</div>
+            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: ${order.total.toFixed(2)}</div>
             <div class="order-actions">
-              <button class="btn btn-primary" onclick="updateOrderStatus('${doc.id}', 'pending')">📋 Pending</button>
+              ${order.status === 'pending-payment' ? 
+                `<button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'pending')" style="background: #28a745;">✅ Payment Received</button>` : 
+                `<button class="btn btn-primary" onclick="updateOrderStatus('${doc.id}', 'pending')">📋 Pending</button>`
+              }
               <button class="btn btn-secondary" onclick="updateOrderStatus('${doc.id}', 'preparing')">👨‍🍳 Preparing</button>
               <button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'completed')">✅ Completed</button>
               <button class="btn btn-danger" onclick="updateOrderStatus('${doc.id}', 'cancelled')">❌ Cancel</button>
