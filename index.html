@@ -829,6 +829,7 @@
         await firebase.auth().signInWithEmailAndPassword(email, password);
         document.getElementById('email').value = '';
         document.getElementById('password').value = '';
+        showStatus('Signed in successfully!', 'success');
       } catch (error) {
         showStatus(getFriendlyError(error), 'error');
       } finally {
@@ -1383,10 +1384,8 @@
 
             await loadMenuItems();
             const welcomeName = userData.displayName || userData.email;
-            // Only show welcome message if this is not the initial page load
-            if (document.readyState === 'complete') {
-              showStatus(`Welcome back, ${welcomeName}!`, 'success');
-            }
+            // Don't show welcome message on initial page load, only on actual sign-in
+            console.log(`User authenticated: ${welcomeName}`);
           } catch (err) {
             console.error("User data error:", err);
             showStatus("There was a problem loading your account.", 'error');
