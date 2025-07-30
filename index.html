@@ -141,6 +141,10 @@
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
     .admin-menu-item {
       background: white;
       padding: 20px;
@@ -382,6 +386,17 @@
       document.getElementById('cart-count').textContent = cart.length;
     }
 
+    // Helper function to get status color - FIXED
+    function getStatusColor(status) {
+      switch (status) {
+        case 'pending': return '#ffc107';
+        case 'preparing': return '#17a2b8';
+        case 'completed': return '#28a745';
+        case 'cancelled': return '#dc3545';
+        default: return '#6c757d';
+      }
+    }
+
     // Tab functions
     function switchTab(tabName) {
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
@@ -408,11 +423,22 @@
         provider.addScope('email');
         provider.addScope('profile');
         
+        // Set custom parameters to handle COOP issues
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
+        
         const result = await firebase.auth().signInWithPopup(provider);
         showStatus(`Welcome ${result.user.displayName || result.user.email}!`, 'success');
       } catch (error) {
         console.error("Google sign in error:", error);
-        showStatus("Google sign in failed. Please try again.", 'error');
+        if (error.code === 'auth/popup-blocked') {
+          showStatus("Popup was blocked. Please allow popups for this site and try again.", 'error');
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          showStatus("Sign in was cancelled.", 'warning');
+        } else {
+          showStatus("Google sign in failed. Please try again.", 'error');
+        }
       } finally {
         stopLoading();
       }
@@ -641,7 +667,7 @@
               <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
               <div class="menu-item-info">
                 <h3>${item.name}</h3>
-                <div class="menu-item-price">${item.price.toFixed(2)}</div>
+                <div class="menu-item-price">$${item.price.toFixed(2)}</div>
               </div>
             </div>
             <div class="menu-item-description">${item.description}</div>
@@ -830,7 +856,7 @@
               <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
               <div class="menu-item-info">
                 <h3>${item.name}</h3>
-                <div class="menu-item-price">$${item.price.toFixed(2)}</div>
+                <div class="menu-item-price">${item.price.toFixed(2)}</div>
               </div>
             </div>
             <div class="menu-item-description">${item.description}</div>
@@ -867,13 +893,18 @@
           const orderDiv = document.createElement('div');
           orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
           
-          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>');
+          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>');
           const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
           
           orderDiv.innerHTML = `
-            <div><strong>Order from ${orderDate}</strong></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+              <strong>Order from ${orderDate}</strong>
+              <div style="padding: 5px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; background: ${getStatusColor(order.status || 'pending')}; color: white;">
+                ${(order.status || 'pending').toUpperCase()}
+              </div>
+            </div>
             <div style="margin: 10px 0;">${itemsList}</div>
-            <div style="font-weight: bold; color: #28a745;">Total: $${order.total.toFixed(2)}</div>
+            <div style="font-weight: bold; color: #28a745;">Total: ${order.total.toFixed(2)}</div>
           `;
           ordersDiv.appendChild(orderDiv);
         });
