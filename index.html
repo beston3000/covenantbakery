@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bakery</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <style>
+    body {
+      background-color: #fff8f1;
+      font-family: sans-serif;
+    }
+    button {
+      padding: 5px 10px;
+      margin: 5px;
+      border: none;
+      background: #eabfb9;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #d89c96;
+    }
+    input {
+      margin: 4px;
+      padding: 6px;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #ccc;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>🍰 Welcome to the Bakery</h1>
+
+  <div id="auth">
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="signUp()">Sign Up</button>
+    <button onclick="signIn()">Sign In</button>
+    <button onclick="signOut()">Logout</button>
+  </div>
+
+  <div id="admin-controls" style="display: none;">
+    <h3>Admin Controls</h3>
+    <button onclick="showAddItemForm()">➕ Add Item</button>
+    <div id="add-item-form" style="display:none;">
+      <input id="item-name" placeholder="Name"><br>
+      <input id="item-description" placeholder="Description"><br>
+      <input id="item-price" type="number" placeholder="Price"><br>
+      <input id="item-emoji" placeholder="Emoji (like 🥐)"><br>
+      <button onclick="submitNewItem()">Submit</button>
+      <button onclick="hideAddItemForm()">Cancel</button>
+    </div>
+  </div>
+
+  <h2>📦 Menu</h2>
+  <div id="menu"></div>
+
+  <h2>🛒 Cart</h2>
+  <div id="cart"></div>
+  <button onclick="checkout()">Checkout</button>
+
+  <script>
+    const firebaseConfig = {
+      // 🛠️ Replace these with your real Firebase config values
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser = null;
+    let userData = null;
+    let cart = [];
+
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        currentUser = user;
+        try {
+          const doc = await db.collection('users').doc(user.uid).get();
+          userData = doc.data();
+          if (!userData) throw new Error("User data not found.");
+
+          if (userData.role === 'admin') {
+            document.getElementById('admin-controls').style.display = 'block';
+          }
+
+          loadMenuItems();
+        } catch (err) {
+          console.error("User data error:", err);
+          alert("There was a problem loading your account.");
+        }
+      } else {
+        currentUser = null;
+        userData = null;
+        document.getElementById('admin-controls').style.display = 'none';
+        document.getElementById('menu').innerHTML = '';
+        document.getElementById('cart').innerHTML = '';
+      }
+    });
+
+    async function signUp() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        const result = await auth.createUserWithEmailAndPassword(email, password);
+        await db.collection('users').doc(result.user.uid).set({
+          email,
+          role: 'customer',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("Signed up successfully!");
+      } catch (error) {
+        alert(getFriendlyError(error));
+      }
+    }
+
+    async function signIn() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch (error) {
+        alert(getFriendlyError(error));
+      }
+    }
+
+    function signOut() {
+      auth.signOut();
+    }
+
+    function getFriendlyError(error) {
+      if (!error?.code) return error.message;
+      switch (error.code) {
+        case 'auth/user-not-found': return 'No account found with this email.';
+        case 'auth/wrong-password': return 'Incorrect password.';
+        case 'auth/invalid-email': return 'Invalid email address.';
+        case 'auth/invalid-credential': return 'Session expired or invalid.';
+        default: return error.message;
+      }
+    }
+
+    async function loadMenuItems() {
+      try {
+        const snapshot = await db.collection('menuItems').where('inStock', '==', true).get();
+        const menuDiv = document.getElementById('menu');
+        menuDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          const div = document.createElement('div');
+          div.innerHTML = `${item.emoji || '❔'} <b>${item.name}</b> - $${item.price.toFixed(2)}<br>${item.description}<br><button onclick="addToCart('${doc.id}', '${item.name}', ${item.price})">Add to Cart</button><hr>`;
+          menuDiv.appendChild(div);
+        });
+      } catch (err) {
+        console.error("Error loading menu items:", err);
+        alert("Failed to load menu.");
+      }
+    }
+
+    function addToCart(id, name, price) {
+      cart.push({ id, name, price });
+      renderCart();
+    }
+
+    function renderCart() {
+      const cartDiv = document.getElementById('cart');
+      cartDiv.innerHTML = '';
+      let total = 0;
+      cart.forEach(item => {
+        total += item.price;
+        cartDiv.innerHTML += `${item.name} - $${item.price.toFixed(2)}<br>`;
+      });
+      cartDiv.innerHTML += `<b>Total: $${total.toFixed(2)}</b>`;
+    }
+
+    async function checkout() {
+      if (!currentUser) return alert("Sign in first.");
+      if (cart.length === 0) return alert("Cart is empty.");
+      try {
+        await db.collection('orders').add({
+          userId: currentUser.uid,
+          items: cart,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("Order placed!");
+        cart = [];
+        renderCart();
+      } catch (err) {
+        console.error("Checkout error:", err);
+        alert("Order failed.");
+      }
+    }
+
+    function showAddItemForm() {
+      document.getElementById('add-item-form').style.display = 'block';
+    }
+
+    function hideAddItemForm() {
+      document.getElementById('add-item-form').style.display = 'none';
+    }
+
+    async function submitNewItem() {
+      const name = document.getElementById('item-name')?.value || '';
+      const description = document.getElementById('item-description')?.value || '';
+      const price = parseFloat(document.getElementById('item-price')?.value || 0);
+      const emoji = document.getElementById('item-emoji')?.value || '';
+
+      if (!name || !description || isNaN(price) || !emoji) {
+        alert("Please fill in all fields.");
+        return;
+      }
+
+      try {
+        await db.collection('menuItems').add({
+          name, description, price, emoji, inStock: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("Item added!");
+        hideAddItemForm();
+        loadMenuItems();
+      } catch (err) {
+        console.error("Failed to add item:", err);
+        alert("Add item failed.");
+      }
+    }
+  </script>
+</body>
+</html>
