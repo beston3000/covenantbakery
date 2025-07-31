@@ -593,7 +593,7 @@
   <div class="container">
     <div class="header">
       <h1>🍰 Covenant Hills Bakery</h1>
-      <p>Freshly baked goods made with love in Covenant Hills</p>
+      <p>Fresh artisan baked goods in Covenant Hills</p>
     </div>
 
     <div id="location-verification" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
@@ -642,6 +642,7 @@
         <button class="tab-button" onclick="switchTab('cart'); console.log('🛒 Cart tab clicked - will auto-refresh');" id="cart-tab">🛒 Cart <span id="cart-count">0</span></button>
         <button class="tab-button" onclick="switchTab('orders')" id="orders-tab" style="display: none;">📋 Orders</button>
         <button class="tab-button" onclick="switchTab('admin')" id="admin-tab" style="display: none;">👑 Admin</button>
+        <button class="tab-button" onclick="switchTab('employees')" id="employees-tab" style="display: none;">👥 Employees</button>
       </div>
 
       <div class="tab-content">
@@ -807,6 +808,41 @@
             </div>
           </div>
         </div>
+
+        <div id="employees-panel" class="tab-panel">
+          <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">👥 Employee Management</h2>
+          
+          <!-- Employee Controls -->
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="margin-bottom: 20px;">Employee Controls</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+              <button class="btn btn-success" onclick="showAddEmployeeForm()">➕ Add New Employee</button>
+              <button class="btn btn-secondary" onclick="loadEmployees()">🔄 Refresh List</button>
+            </div>
+            
+            <!-- Add Employee Form -->
+            <div id="add-employee-form" style="display:none; background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
+              <h4 style="margin-bottom: 15px;">Add New Employee</h4>
+              <input id="employee-name" placeholder="Employee Name (e.g., John Smith)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <input id="employee-role" placeholder="Role (e.g., Baker, Cashier, Manager)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <input id="employee-email" type="email" placeholder="Email (optional)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <input id="employee-phone" placeholder="Phone (optional)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <input id="employee-hourly-rate" type="number" step="0.01" placeholder="Hourly Rate (optional)" style="margin-bottom: 15px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <div>
+                <button class="btn btn-success" onclick="submitNewEmployee()">Add Employee</button>
+                <button class="btn btn-secondary" onclick="hideAddEmployeeForm()">Cancel</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Employee List -->
+          <div id="employees-section">
+            <h3 style="color: #d4691a; margin-bottom: 15px;">👥 Current Employees</h3>
+            <div id="employees-list" class="menu-grid">
+              <div class="empty-state"><p>Loading employees...</p></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     </div>
@@ -860,6 +896,233 @@
     }
 
     // Test Venmo payment link functionality
+    function testVenmoPayment() {
+      console.log('🧪 Testing Venmo payment link...');
+      
+      if (cart.length === 0) {
+        console.log('⚠️ Cannot test Venmo payment - cart is empty');
+        showStatus('Add items to cart to test Venmo payment', 'warning');
+        return;
+      }
+      
+      updateVenmoLink();
+      
+      const venmoLink = document.getElementById('venmo-payment-link');
+      if (venmoLink) {
+        console.log('✅ Venmo test complete. Link URL:', venmoLink.href);
+        showStatus('Venmo payment link updated successfully!', 'success');
+      } else {
+        console.log('❌ Venmo link element not found');
+        showStatus('Error: Venmo payment link not found', 'error');
+      }
+    }
+
+    // EMPLOYEE MANAGEMENT FUNCTIONS
+    function showAddEmployeeForm() {
+      document.getElementById('add-employee-form').style.display = 'block';
+    }
+
+    function hideAddEmployeeForm() {
+      document.getElementById('add-employee-form').style.display = 'none';
+      document.getElementById('employee-name').value = '';
+      document.getElementById('employee-role').value = '';
+      document.getElementById('employee-email').value = '';
+      document.getElementById('employee-phone').value = '';
+      document.getElementById('employee-hourly-rate').value = '';
+    }
+
+    async function submitNewEmployee() {
+      const name = document.getElementById('employee-name')?.value?.trim() || '';
+      const role = document.getElementById('employee-role')?.value?.trim() || '';
+      const email = document.getElementById('employee-email')?.value?.trim() || '';
+      const phone = document.getElementById('employee-phone')?.value?.trim() || '';
+      const hourlyRate = parseFloat(document.getElementById('employee-hourly-rate')?.value || 0);
+
+      if (!name || !role) {
+        showStatus("Please enter at least employee name and role.", 'warning');
+        return;
+      }
+
+      const submitBtn = event.target;
+      const stopLoading = showLoading(submitBtn);
+
+      try {
+        const employeeData = {
+          name,
+          role,
+          email: email || null,
+          phone: phone || null,
+          hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+          isActive: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          createdBy: currentUser.uid
+        };
+
+        await firebase.firestore().collection('employees').add(employeeData);
+        
+        showStatus(`✅ ${name} added to employee list successfully!`, 'success');
+        hideAddEmployeeForm();
+        loadEmployees();
+        
+      } catch (err) {
+        console.error("Failed to add employee:", err);
+        showStatus("❌ Failed to add employee. Please try again.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function loadEmployees() {
+      if (!userData || userData.role !== 'admin') return;
+      
+      try {
+        const snapshot = await firebase.firestore().collection('employees').orderBy('createdAt', 'desc').get();
+        const employeesDiv = document.getElementById('employees-list');
+        
+        if (snapshot.empty) {
+          employeesDiv.innerHTML = '<div class="empty-state"><p>No employees added yet.</p></div>';
+          return;
+        }
+
+        employeesDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const employee = doc.data();
+          const employeeDiv = document.createElement('div');
+          employeeDiv.className = `admin-menu-item ${!employee.isActive ? 'out-of-stock' : ''}`;
+          employeeDiv.innerHTML = `
+            <div class="stock-indicator ${employee.isActive ? 'in-stock' : 'out-of-stock'}">
+              ${employee.isActive ? 'Active' : 'Inactive'}
+            </div>
+            <div class="menu-item-header">
+              <div class="menu-item-emoji">👤</div>
+              <div class="menu-item-info">
+                <h3>${employee.name}</h3>
+                <div class="menu-item-price">${employee.role}</div>
+              </div>
+            </div>
+            <div class="menu-item-description">
+              ${employee.email ? `📧 ${employee.email}<br>` : ''}
+              ${employee.phone ? `📱 ${employee.phone}<br>` : ''}
+              ${employee.hourlyRate ? `💰 ${employee.hourlyRate.toFixed(2)}/hour` : ''}
+            </div>
+            <div class="item-controls">
+              <button class="btn btn-primary" onclick="editEmployee('${doc.id}')">✏️ Edit</button>
+              <button class="btn ${employee.isActive ? 'btn-danger' : 'btn-success'}" onclick="toggleEmployeeStatus('${doc.id}', ${!employee.isActive})">
+                ${employee.isActive ? '❌ Deactivate' : '✅ Activate'}
+              </button>
+              <button class="btn btn-danger" onclick="deleteEmployee('${doc.id}', '${employee.name}')">🗑️ Delete</button>
+            </div>
+            <div id="edit-employee-form-${doc.id}" class="edit-form" style="display: none;">
+              <input id="edit-employee-name-${doc.id}" value="${employee.name}" placeholder="Name">
+              <input id="edit-employee-role-${doc.id}" value="${employee.role}" placeholder="Role">
+              <input id="edit-employee-email-${doc.id}" value="${employee.email || ''}" placeholder="Email">
+              <input id="edit-employee-phone-${doc.id}" value="${employee.phone || ''}" placeholder="Phone">
+              <input id="edit-employee-hourly-rate-${doc.id}" type="number" step="0.01" value="${employee.hourlyRate || ''}" placeholder="Hourly Rate">
+              <div style="margin-top: 10px;">
+                <button class="btn btn-success" onclick="saveEmployee('${doc.id}')">💾 Save</button>
+                <button class="btn btn-secondary" onclick="cancelEditEmployee('${doc.id}')">❌ Cancel</button>
+              </div>
+            </div>
+          `;
+          employeesDiv.appendChild(employeeDiv);
+        });
+      } catch (err) {
+        console.error("Error loading employees:", err);
+        showStatus("Failed to load employees.", 'error');
+      }
+    }
+
+    function editEmployee(employeeId) {
+      document.getElementById(`edit-employee-form-${employeeId}`).style.display = 'block';
+    }
+
+    function cancelEditEmployee(employeeId) {
+      document.getElementById(`edit-employee-form-${employeeId}`).style.display = 'none';
+    }
+
+    async function saveEmployee(employeeId) {
+      const name = document.getElementById(`edit-employee-name-${employeeId}`).value.trim();
+      const role = document.getElementById(`edit-employee-role-${employeeId}`).value.trim();
+      const email = document.getElementById(`edit-employee-email-${employeeId}`).value.trim();
+      const phone = document.getElementById(`edit-employee-phone-${employeeId}`).value.trim();
+      const hourlyRate = parseFloat(document.getElementById(`edit-employee-hourly-rate-${employeeId}`).value);
+
+      if (!name || !role) {
+        showStatus("Please enter at least employee name and role.", 'warning');
+        return;
+      }
+
+      const saveBtn = event.target;
+      const originalText = saveBtn.textContent;
+      saveBtn.innerHTML = '<span class="loading"></span> Saving...';
+      saveBtn.disabled = true;
+
+      try {
+        const updateData = {
+          name,
+          role,
+          email: email || null,
+          phone: phone || null,
+          hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await firebase.firestore().collection('employees').doc(employeeId).update(updateData);
+        
+        showStatus("✅ Employee updated successfully!", 'success');
+        cancelEditEmployee(employeeId);
+        loadEmployees();
+        
+      } catch (err) {
+        console.error("Failed to update employee:", err);
+        showStatus("❌ Failed to update employee.", 'error');
+        
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+      }
+    }
+
+    async function toggleEmployeeStatus(employeeId, isActive) {
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        await firebase.firestore().collection('employees').doc(employeeId).update({
+          isActive,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`✅ Employee ${isActive ? 'activated' : 'deactivated'}!`, 'success');
+        loadEmployees();
+        
+      } catch (err) {
+        console.error("Failed to update employee status:", err);
+        showStatus("❌ Failed to update employee status.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function deleteEmployee(employeeId, employeeName) {
+      if (!confirm(`Are you sure you want to delete "${employeeName}" from the employee list? This action cannot be undone.`)) {
+        return;
+      }
+
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        await firebase.firestore().collection('employees').doc(employeeId).delete();
+        showStatus(`✅ "${employeeName}" deleted successfully.`, 'success');
+        loadEmployees();
+        
+      } catch (err) {
+        console.error("Failed to delete employee:", err);
+        showStatus("❌ Failed to delete employee.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
     function testVenmoPayment() {
       console.log('🧪 Testing Venmo payment link...');
       
@@ -983,8 +1246,8 @@
       }
     }
 
-    // FIXED: Updated updateVenmoLink function with proper Venmo Payment API
-    function updateVenmoLink() {
+    // FIXED: Updated updateVenmoLink function with proper order number
+    function updateVenmoLink(orderNumber = null) {
       console.log('🔗 updateVenmoLink called');
       const venmoLink = document.getElementById('venmo-payment-link');
       if (venmoLink && cart.length > 0) {
@@ -992,8 +1255,8 @@
         const deliveryFee = getDeliveryFee();
         const total = subtotal + deliveryFee;
         
-        // Generate order summary for Venmo note
-        const orderSummary = generateOrderSummary();
+        // Generate order summary for Venmo note with order number
+        const orderSummary = generateOrderSummary(orderNumber);
         const encodedNote = encodeURIComponent(orderSummary);
         
         // Use proper Venmo Payment API format
@@ -1015,17 +1278,20 @@
       }
     }
 
-    // FIXED: Updated generateOrderSummary function
-    function generateOrderSummary() {
-      const orderItems = cart.map(item => `${item.emoji} ${item.name} ($${parseFloat(item.price).toFixed(2)})`).join(', ');
+    // FIXED: Updated generateOrderSummary function with delivery type and order number
+    function generateOrderSummary(orderNumber = null) {
+      const orderItems = cart.map(item => `${item.emoji} ${item.name} (${parseFloat(item.price).toFixed(2)})`).join(', ');
       const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
       const deliveryFee = getDeliveryFee();
       const total = subtotal + deliveryFee;
       
       const deliveryType = document.querySelector('input[name="delivery-option"]:checked')?.value || 'pickup';
-      const deliveryText = deliveryType === 'delivery' ? ' + Delivery $1.50' : '';
+      const deliveryText = deliveryType === 'delivery' ? 'Delivery' : 'Pick-up';
       
-      return `Covenant Hills Bakery Order - ${orderItems}${deliveryText} - Total: $${total.toFixed(2)}`;
+      // Generate order number if not provided
+      const orderNum = orderNumber || ('ORDER-' + Date.now().toString().slice(-6));
+      
+      return `Covenant Hills Bakery | ${orderItems} | Delivery Type: ${deliveryText} | Order Number: ${orderNum} | Total: ${total.toFixed(2)}`;
     }
 
     // FIXED: Updated renderCart function with proper total updates
@@ -1288,13 +1554,13 @@
         setTimeout(() => {
           forceUpdateTotals();
         }, 200);
-      }
-      
-      if (tabName === 'orders' && currentUser) {
+      } else if (tabName === 'orders' && currentUser) {
         loadUserOrders();
       } else if (tabName === 'admin' && userData?.role === 'admin') {
         loadAdminMenuItems();
         loadAdminOrders('all');
+      } else if (tabName === 'employees' && userData?.role === 'admin') {
+        loadEmployees();
       }
     }
 
@@ -1455,9 +1721,13 @@
       const stopLoading = showLoading(submitBtn);
 
       try {
+        // Generate order ID first
         const orderId = 'ORDER-' + Date.now().toString().slice(-6);
         const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
         const total = subtotal + deliveryDetails.fee;
+        
+        // Update Venmo link with the specific order number
+        updateVenmoLink(orderId);
         
         await firebase.firestore().collection('orders').add({
           userId: currentUser.uid,
@@ -1486,7 +1756,7 @@
           <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
             <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
             <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
-            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> $${total.toFixed(2)}</p>
+            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> ${total.toFixed(2)}</p>
             <p style="margin-bottom: 20px;">${deliveryText}</p>
             <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
             <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
@@ -1720,31 +1990,45 @@
       }
     }
 
+    // FIXED: Updated loadAdminOrders function with proper filtering
     async function loadAdminOrders(filter = 'all') {
       if (!userData || userData.role !== 'admin') return;
       
+      console.log('📋 Loading admin orders with filter:', filter);
+      
       try {
-        let query = firebase.firestore().collection('orders').orderBy('createdAt', 'desc');
+        let query = firebase.firestore().collection('orders');
         
+        // Apply filtering based on status
         if (filter !== 'all') {
+          console.log('🔍 Applying filter for status:', filter);
           query = query.where('status', '==', filter);
         }
         
+        // Always order by creation date
+        query = query.orderBy('createdAt', 'desc');
+        
+        console.log('🔄 Executing query...');
         const snapshot = await query.get();
+        console.log('📊 Query results:', snapshot.size, 'orders found');
+        
         const ordersDiv = document.getElementById('admin-orders-list');
         
         if (snapshot.empty) {
-          ordersDiv.innerHTML = '<div class="empty-state"><p>No orders found.</p></div>';
+          const message = filter === 'all' ? 'No orders found.' : `No ${filter} orders found.`;
+          ordersDiv.innerHTML = `<div class="empty-state"><p>${message}</p></div>`;
           return;
         }
 
         ordersDiv.innerHTML = '';
         snapshot.forEach(doc => {
           const order = doc.data();
+          console.log('📋 Processing order:', doc.id, 'Status:', order.status);
+          
           const orderDiv = document.createElement('div');
           orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
           
-          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>');
+          const itemsList = order.items?.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>') || 'No items';
           const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
           const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
           
@@ -1755,12 +2039,17 @@
           const statusColor = order.status === 'pending-payment' ? '#ff9800' : getStatusColor(order.status || 'pending');
           const statusText = order.status === 'pending-payment' ? 'AWAITING PAYMENT' : (order.status || 'pending').toUpperCase();
           
+          // Add delivery information
+          const deliveryInfo = order.deliveryDetails ? 
+            `<small style="color: #666;">📍 ${order.deliveryDetails.type === 'delivery' ? 'Delivery to: ' + order.deliveryDetails.address : 'Pickup at: ' + order.deliveryDetails.location}</small><br>` : '';
+          
           orderDiv.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;">
               <div>
                 <strong>Order #${order.orderId || doc.id.slice(-6)}</strong><br>
                 <small style="color: #666;">${orderDate} ${orderTime}</small><br>
                 <small style="color: #666;">Customer: ${order.userEmail}</small><br>
+                ${deliveryInfo}
                 ${paymentInfo}
               </div>
               <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${statusColor}; color: white;">
@@ -1768,7 +2057,11 @@
               </div>
             </div>
             <div style="margin: 15px 0;">${itemsList}</div>
-            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: $${order.total.toFixed(2)}</div>
+            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">
+              Subtotal: ${order.subtotal?.toFixed(2) || '0.00'} | 
+              Delivery: ${order.deliveryDetails?.fee?.toFixed(2) || '0.00'} | 
+              Total: ${order.total?.toFixed(2) || '0.00'}
+            </div>
             <div class="order-actions">
               ${order.status === 'pending-payment' ? 
                 `<button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'pending')" style="background: #28a745;">✅ Payment Received</button>` : 
@@ -1782,9 +2075,15 @@
           `;
           ordersDiv.appendChild(orderDiv);
         });
+        
+        console.log('✅ Admin orders loaded successfully');
       } catch (err) {
-        console.error("Error loading admin orders:", err);
-        showStatus("Failed to load orders.", 'error');
+        console.error("❌ Error loading admin orders:", err);
+        console.error("Error details:", err.code, err.message);
+        showStatus(`Failed to load orders: ${err.message}`, 'error');
+        
+        const ordersDiv = document.getElementById('admin-orders-list');
+        ordersDiv.innerHTML = `<div class="empty-state"><p>Error loading orders. Check console for details.</p></div>`;
       }
     }
 
@@ -1977,6 +2276,7 @@
           document.getElementById('orders-tab').style.display = 'block';
           if (userData.role === 'admin') {
             document.getElementById('admin-tab').style.display = 'block';
+            document.getElementById('employees-tab').style.display = 'block';
           }
 
           await loadMenuItems();
@@ -1988,6 +2288,7 @@
           document.getElementById('signed-in-view').style.display = 'none';
           document.getElementById('orders-tab').style.display = 'none';
           document.getElementById('admin-tab').style.display = 'none';
+          document.getElementById('employees-tab').style.display = 'none';
           
           document.getElementById('menu').innerHTML = '<div class="empty-state"><p>Sign in to view our delicious menu items!</p></div>';
           cart = [];
