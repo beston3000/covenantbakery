@@ -590,6 +590,45 @@
       background: linear-gradient(90deg, transparent, rgba(255, 107, 107, 0.3), transparent);
     }
     
+    /* Cart Stacking and Deal Styles */
+    .cart-item.has-deal {
+      border-left: 4px solid #28a745;
+      background: rgba(40, 167, 69, 0.05);
+    }
+    
+    .cart-savings-total {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 10px 0;
+      text-align: center;
+      animation: savingsBounce 0.5s ease;
+    }
+    
+    @keyframes savingsBounce {
+      0% { transform: scale(0.8); opacity: 0; }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .quantity-controls {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    
+    .quantity-controls .btn {
+      padding: 3px 8px;
+      font-size: 0.8rem;
+      min-width: auto;
+    }
+    
+    /* Cart Count Animation */
+    #cart-count {
+      transition: transform 0.2s ease;
+    }
+    
     /* Venmo Button Styling */
     #checkout-section {
       transition: all 0.3s ease;
@@ -1038,12 +1077,26 @@
         return;
       }
       
+      // Force update the processed cart
+      if (window.processedCartForCalculations) {
+        console.log('🔄 Using processed cart with deals for test');
+      }
+      
       updateVenmoLink();
       
       const venmoLink = document.getElementById('venmo-payment-link');
       if (venmoLink) {
         console.log('✅ Venmo test complete. Link URL:', venmoLink.href);
-        showStatus('Venmo payment link updated successfully!', 'success');
+        showStatus('Venmo payment link updated successfully! Check console for details.', 'success');
+        
+        // Show test results in console
+        const cartToUse = window.processedCartForCalculations || cart;
+        const subtotal = cartToUse.reduce((sum, item) => sum + parseFloat(item.price), 0);
+        console.log('💰 Test Results:');
+        console.log('   Cart items:', cartToUse.length);
+        console.log('   Subtotal with deals:', subtotal.toFixed(2));
+        console.log('   Delivery fee:', getDeliveryFee().toFixed(2));
+        console.log('   Final total:', (subtotal + getDeliveryFee()).toFixed(2));
       } else {
         console.log('❌ Venmo link element not found');
         showStatus('Error: Venmo payment link not found', 'error');
@@ -1729,13 +1782,16 @@
       return fee;
     }
 
-    // FIXED: Updated updateVenmoTotal function with proper subtotal calculation
+    // FIXED: Updated updateVenmoTotal function to use actual cart prices with deals
     function updateVenmoTotal() {
       console.log('💰 updateVenmoTotal called');
       
-      // Calculate subtotal (sum of all cart items)
-      const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
-      console.log('📊 Calculated subtotal:', subtotal);
+      // Use processed cart if available (with deals applied), otherwise use regular cart
+      const cartToUse = window.processedCartForCalculations || cart;
+      
+      // Calculate subtotal using actual prices from cart (includes deal discounts)
+      const subtotal = cartToUse.reduce((sum, item) => sum + parseFloat(item.price), 0);
+      console.log('📊 Calculated subtotal with deals applied:', subtotal);
       
       // Get delivery fee
       const deliveryFee = getDeliveryFee();
@@ -1758,8 +1814,8 @@
       }
       
       if (deliveryEl) {
-        deliveryEl.textContent = deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : 'Free Pickup';
-        console.log('✅ Updated delivery element to:', deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : 'Free Pickup');
+        deliveryEl.textContent = deliveryFee > 0 ? `${deliveryFee.toFixed(2)}` : 'Free Pickup';
+        console.log('✅ Updated delivery element to:', deliveryFee > 0 ? `${deliveryFee.toFixed(2)}` : 'Free Pickup');
       } else {
         console.log('❌ delivery-fee-display element not found');
       }
@@ -2110,7 +2166,19 @@
     }
 
     function updateCartCount() {
-      document.getElementById('cart-count').textContent = cart.length;
+      // Show total number of individual items, not grouped items
+      const totalItems = cart.length;
+      const cartCountEl = document.getElementById('cart-count');
+      
+      if (cartCountEl) {
+        cartCountEl.textContent = totalItems;
+        
+        // Add a subtle animation when count changes
+        cartCountEl.style.transform = 'scale(1.2)';
+        setTimeout(() => {
+          cartCountEl.style.transform = 'scale(1)';
+        }, 200);
+      }
     }
 
     function getStatusColor(status) {
