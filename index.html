@@ -834,8 +834,8 @@
                 <p style="margin-bottom: 15px; font-size: 1.2rem;"><strong>Total Amount:</strong> $<span id="venmo-total">0.00</span></p>
                 <button onclick="forceUpdateTotals()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔄 Update Totals</button>
                 <button onclick="forceRefreshCart()" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔄 Refresh Cart</button><br>
-                <button onclick="testVenmoPayment()" style="background: rgba(61,149,206,0.3); border: 1px solid rgba(61,149,206,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🧪 Test Venmo Link</button>
-                <button onclick="debugCartCalculations()" style="background: rgba(255,193,7,0.3); border: 1px solid rgba(255,193,7,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔍 Debug Subtotal</button><br>
+                <button onclick="testVenmoPayment()" style="background: rgba(61,149,206,0.3); border: 1px solid rgba(61,149,206,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🧪 Test Venmo</button>
+                <button onclick="debugCartCalculations()" style="background: rgba(255,193,7,0.3); border: 1px solid rgba(255,193,7,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔍 Debug All</button><br>
                 <p style="font-size: 0.9rem; opacity: 0.8;">⚠️ Please include your order details in the Venmo note!</p>
               </div>
             </div>
@@ -1086,18 +1086,21 @@
       }
     }
 
-    // Force refresh cart display and calculations
+    // Force complete cart refresh - clears all cache and re-renders
     function forceRefreshCart() {
       console.log('🔄 === FORCE REFRESH CART ===');
       
-      // Clear any cached data
+      // Clear ALL cached data
       window.processedCartForCalculations = null;
       window.finalCartTotal = undefined;
+      window.itemGroupsMap = null;
       
-      // Re-render everything
+      console.log('🧹 Cleared all cached cart data');
+      
+      // Force complete re-render
       renderCart();
       
-      showStatus('Cart display refreshed!', 'success');
+      showStatus('Cart completely refreshed! Check if items are now stacked.', 'success');
     }
 
     // Test Venmo payment link functionality
@@ -2359,7 +2362,7 @@
       showStatus('Signed out successfully!', 'success');
     }
 
-    // Cart functions with deal support
+    // FIXED: Cart functions with proper deal metadata storage
     async function addToCart(id, name, price, emoji) {
       if (!requireLocationVerification()) return;
       
@@ -2367,28 +2370,39 @@
         // Get active deals for this item
         const deals = await getActiveDealsForItem(id);
         
-        let finalItem = { id, name, price, emoji };
+        let finalItem = { id, name, price: parseFloat(price), emoji };
         
-        // Apply the best deal (if any)
+        // For buy-X-get-Y deals, store deal info but don't apply discount yet
+        // For percentage/fixed deals, apply immediately
         if (deals.length > 0) {
           const bestDeal = deals[0];
-          finalItem = applyDealToItem(finalItem, bestDeal);
           
-          // Store deal info for buy-X-get-Y processing
           if (bestDeal.type === 'buy-get') {
+            // Store deal info for cart-level processing
+            finalItem.dealId = bestDeal.id;
             finalItem.dealType = 'buy-get';
             finalItem.buyQuantity = bestDeal.buyQuantity;
             finalItem.freeQuantity = bestDeal.freeQuantity;
+            finalItem.dealInfo = `Buy ${bestDeal.buyQuantity} Get ${bestDeal.freeQuantity} FREE`;
+            // Don't apply discount yet - wait for cart processing
+          } else {
+            // Apply percentage/fixed discounts immediately
+            finalItem = applyDealToItem(finalItem, bestDeal);
           }
         }
         
+        console.log('➕ Adding item to cart:', finalItem);
         cart.push(finalItem);
+        
+        // Re-render cart (this will apply buy-X-get-Y deals)
         renderCart();
         updateCartCount();
         
         let message = `${name} added to cart!`;
-        if (finalItem.dealInfo) {
+        if (finalItem.dealInfo && finalItem.dealType !== 'buy-get') {
           message += ` 🏷️ ${finalItem.dealInfo} applied!`;
+        } else if (finalItem.dealType === 'buy-get') {
+          message += ` 🏷️ Deal available: ${finalItem.dealInfo}`;
         }
         
         showStatus(message, 'success');
