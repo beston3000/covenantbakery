@@ -564,6 +564,21 @@
       box-shadow: 0 10px 25px rgba(61, 149, 206, 0.6);
     }
     
+    /* Delivery Options Styling */
+    input[type="radio"]:checked + span {
+      color: #4c63d2 !important;
+    }
+    
+    label:has(input[type="radio"]:checked) {
+      background: rgba(102, 126, 234, 0.2) !important;
+      border: 2px solid #667eea !important;
+    }
+    
+    label:hover {
+      background: rgba(102, 126, 234, 0.15) !important;
+      transform: translateY(-2px);
+    }
+    
     @media (max-width: 768px) {
       .header h1 { font-size: 2.5rem; }
       .input-group { flex-direction: column; }
@@ -680,18 +695,46 @@
             <div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>
           </div>
           <div id="checkout-section" style="display: none; margin-top: 30px;">
+            
+            <!-- Delivery Options -->
+            <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(0, 0, 0, 0.1);">
+              <h4 style="color: #d4691a; margin-bottom: 20px; text-align: center;">📍 Delivery Options</h4>
+              
+              <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; transition: all 0.3s ease;">
+                  <input type="radio" name="delivery-option" value="pickup" checked onchange="updateDeliveryOption()">
+                  <span style="font-weight: 600; color: #667eea;">🏪 Pickup at 7 Moonlight Isle</span>
+                </label>
+                
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; transition: all 0.3s ease;">
+                  <input type="radio" name="delivery-option" value="delivery" onchange="updateDeliveryOption()">
+                  <span style="font-weight: 600; color: #667eea;">🚚 Delivery (+$1.50)</span>
+                </label>
+              </div>
+              
+              <!-- Address Input (hidden by default) -->
+              <div id="address-section" style="display: none; background: rgba(248, 249, 250, 0.9); padding: 20px; border-radius: 10px; margin-top: 15px;">
+                <h5 style="color: #667eea; margin-bottom: 15px;">📍 Delivery Address</h5>
+                <input id="delivery-address" type="text" placeholder="Enter your full address in Covenant Hills or Ladera Ranch" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 10px;">
+                <input id="delivery-instructions" type="text" placeholder="Delivery instructions (optional)" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem;">
+              </div>
+            </div>
+
+            <!-- Payment Instructions -->
             <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px;">
               <h3 style="margin-bottom: 15px; font-family: 'Playfair Display', serif;">💳 Payment Instructions</h3>
               <p style="margin-bottom: 20px; opacity: 0.9;">To complete your order, please send payment via Venmo:</p>
               
               <!-- Venmo Payment Button -->
-              <a href="https://venmo.com/audreycrisp" target="_blank" style="display: inline-block; background: #3D95CE; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin: 10px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(61, 149, 206, 0.4);">
+              <a href="https://venmo.com/YOUR_MOMS_VENMO_USERNAME" target="_blank" style="display: inline-block; background: #3D95CE; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin: 10px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(61, 149, 206, 0.4);">
                 📱 Pay with Venmo
               </a>
               
               <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 15px; margin-top: 20px;">
-                <p style="margin-bottom: 10px;"><strong>Venmo Username:</strong> @audreycrisp</p>
-                <p style="margin-bottom: 15px;"><strong>Amount:</strong> $<span id="venmo-total">0.00</span></p>
+                <p style="margin-bottom: 10px;"><strong>Venmo Username:</strong> @YOUR_MOMS_VENMO_USERNAME</p>
+                <p style="margin-bottom: 10px;"><strong>Subtotal:</strong> $<span id="cart-subtotal">0.00</span></p>
+                <p style="margin-bottom: 10px;"><strong>Delivery:</strong> <span id="delivery-fee-display">Free Pickup</span></p>
+                <p style="margin-bottom: 15px; font-size: 1.2rem;"><strong>Total Amount:</strong> $<span id="venmo-total">0.00</span></p>
                 <p style="font-size: 0.9rem; opacity: 0.8;">⚠️ Please include your order details in the Venmo note!</p>
               </div>
             </div>
@@ -1169,7 +1212,7 @@
       updateCartCount();
     }
 
-    // UPDATED: Simple Venmo-based checkout functions
+    // UPDATED: Venmo order submission with delivery options
     async function submitVenmoOrder() {
       if (!requireLocationVerification()) return;
       
@@ -1184,18 +1227,48 @@
         return;
       }
 
+      // Get delivery option and validate
+      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
+      let deliveryDetails = {};
+
+      if (selectedOption === 'delivery') {
+        const address = document.getElementById('delivery-address')?.value?.trim();
+        if (!address) {
+          showStatus("Please enter a delivery address.", 'warning');
+          document.getElementById('delivery-address')?.focus();
+          return;
+        }
+        
+        deliveryDetails = {
+          type: 'delivery',
+          address: address,
+          instructions: document.getElementById('delivery-instructions')?.value?.trim() || '',
+          fee: 1.50
+        };
+      } else {
+        deliveryDetails = {
+          type: 'pickup',
+          location: '7 Moonlight Isle',
+          fee: 0
+        };
+      }
+
       const submitBtn = document.getElementById('submit-order-btn');
       const stopLoading = showLoading(submitBtn);
 
       try {
         // Generate a simple order ID
         const orderId = 'ORDER-' + Date.now().toString().slice(-6);
+        const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+        const total = subtotal + deliveryDetails.fee;
         
         await firebase.firestore().collection('orders').add({
           userId: currentUser.uid,
           userEmail: userData.email,
           items: cart,
-          total: cart.reduce((sum, item) => sum + item.price, 0),
+          subtotal: subtotal,
+          deliveryDetails: deliveryDetails,
+          total: total,
           status: 'pending-payment',
           paymentMethod: 'venmo',
           orderId: orderId,
@@ -1207,6 +1280,10 @@
         cart = [];
         renderCart();
         
+        const deliveryText = deliveryDetails.type === 'delivery' 
+          ? `📍 Delivery to: ${deliveryDetails.address}` 
+          : `🏪 Pickup at: ${deliveryDetails.location}`;
+        
         showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
         
         // Show confirmation message
@@ -1214,6 +1291,8 @@
           <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
             <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
             <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
+            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> ${total.toFixed(2)}</p>
+            <p style="margin-bottom: 20px;">${deliveryText}</p>
             <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
             <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
           </div>
