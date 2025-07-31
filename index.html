@@ -858,30 +858,64 @@
     }
 
     function forceUpdateTotals() {
-      console.log('🔄 Force updating totals...');
+      console.log('🔄 === FORCE UPDATE TOTALS ===');
       try {
-        // First, double-check cart contents
-        console.log('📦 Current cart for totals:', cart);
-        console.log('📦 Cart length:', cart.length);
+        // Double-check cart state
+        console.log('📦 Current cart state:', cart);
+        console.log('📦 Cart array length:', cart?.length || 'undefined');
         
-        if (cart.length === 0) {
-          console.log('⚠️ Cart is empty, setting totals to 0');
-          const subtotalElement = document.getElementById('cart-subtotal');
-          const venmoTotalElement = document.getElementById('venmo-total');
-          const deliveryFeeElement = document.getElementById('delivery-fee-display');
-          
-          if (subtotalElement) subtotalElement.textContent = '0.00';
-          if (venmoTotalElement) venmoTotalElement.textContent = '0.00';
-          if (deliveryFeeElement) deliveryFeeElement.textContent = 'Free Pickup';
+        if (!cart || cart.length === 0) {
+          console.log('⚠️ Cart is empty or undefined');
+          // Set everything to zero
+          setTimeout(() => {
+            const subtotalEl = document.getElementById('cart-subtotal');
+            const totalEl = document.getElementById('venmo-total');
+            const deliveryEl = document.getElementById('delivery-fee-display');
+            
+            if (subtotalEl) subtotalEl.textContent = '0.00';
+            if (totalEl) totalEl.textContent = '0.00';
+            if (deliveryEl) deliveryEl.textContent = 'Free Pickup';
+          }, 50);
           return;
         }
         
+        // Call robust update function
         updateVenmoTotal();
         updateVenmoLink();
         console.log('✅ Force update completed');
       } catch (error) {
         console.error('❌ Error in forceUpdateTotals:', error);
       }
+    }
+
+    // MANUAL TEST FUNCTION - for debugging
+    function testCalculation() {
+      console.log('🧪 === MANUAL TEST CALCULATION ===');
+      console.log('Cart:', cart);
+      
+      let testSubtotal = 0;
+      cart.forEach(item => {
+        testSubtotal += parseFloat(item.price);
+      });
+      
+      const testDeliveryFee = document.querySelector('input[value="delivery"]:checked') ? 1.50 : 0;
+      const testTotal = testSubtotal + testDeliveryFee;
+      
+      console.log('Test Results:');
+      console.log('  Subtotal:', testSubtotal);
+      console.log('  Delivery:', testDeliveryFee);
+      console.log('  Total:', testTotal);
+      
+      // Manually set the values
+      const subtotalEl = document.getElementById('cart-subtotal');
+      const totalEl = document.getElementById('venmo-total');
+      const deliveryEl = document.getElementById('delivery-fee-display');
+      
+      if (subtotalEl) subtotalEl.textContent = testSubtotal.toFixed(2);
+      if (totalEl) totalEl.textContent = testTotal.toFixed(2);
+      if (deliveryEl) deliveryEl.textContent = testDeliveryFee > 0 ? '$1.50' : 'Free Pickup';
+      
+      return { subtotal: testSubtotal, delivery: testDeliveryFee, total: testTotal };
     }
 
     function getDeliveryFee() {
