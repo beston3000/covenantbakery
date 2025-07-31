@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Covenant Hills Bakery - v2.1</title>
+  <title>Covenant Hills Bakery - v2.2</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -830,10 +830,8 @@
       measurementId: "G-C41TKNP37H"
     };
 
-    // IMPORTANT: Define all functions early to prevent ReferenceError
+    // FIXED: Updated checkout functions with proper subtotal handling
     function resetCheckoutUI() {
-      // For Venmo, we don't need to reset anything special
-      // This function exists to prevent the ReferenceError
       console.log('Checkout UI reset (Venmo mode)');
     }
 
@@ -860,13 +858,11 @@
     function forceUpdateTotals() {
       console.log('🔄 === FORCE UPDATE TOTALS ===');
       try {
-        // Double-check cart state
         console.log('📦 Current cart state:', cart);
         console.log('📦 Cart array length:', cart?.length || 'undefined');
         
         if (!cart || cart.length === 0) {
           console.log('⚠️ Cart is empty or undefined');
-          // Set everything to zero
           setTimeout(() => {
             const subtotalEl = document.getElementById('cart-subtotal');
             const totalEl = document.getElementById('venmo-total');
@@ -875,11 +871,11 @@
             if (subtotalEl) subtotalEl.textContent = '0.00';
             if (totalEl) totalEl.textContent = '0.00';
             if (deliveryEl) deliveryEl.textContent = 'Free Pickup';
+            console.log('✅ Reset all totals to zero');
           }, 50);
           return;
         }
         
-        // Call robust update function
         updateVenmoTotal();
         updateVenmoLink();
         console.log('✅ Force update completed');
@@ -888,41 +884,128 @@
       }
     }
 
-    // MANUAL TEST FUNCTION - for debugging
-    function testCalculation() {
-      console.log('🧪 === MANUAL TEST CALCULATION ===');
-      console.log('Cart:', cart);
-      
-      let testSubtotal = 0;
-      cart.forEach(item => {
-        testSubtotal += parseFloat(item.price);
-      });
-      
-      const testDeliveryFee = document.querySelector('input[value="delivery"]:checked') ? 1.50 : 0;
-      const testTotal = testSubtotal + testDeliveryFee;
-      
-      console.log('Test Results:');
-      console.log('  Subtotal:', testSubtotal);
-      console.log('  Delivery:', testDeliveryFee);
-      console.log('  Total:', testTotal);
-      
-      // Manually set the values
-      const subtotalEl = document.getElementById('cart-subtotal');
-      const totalEl = document.getElementById('venmo-total');
-      const deliveryEl = document.getElementById('delivery-fee-display');
-      
-      if (subtotalEl) subtotalEl.textContent = testSubtotal.toFixed(2);
-      if (totalEl) totalEl.textContent = testTotal.toFixed(2);
-      if (deliveryEl) deliveryEl.textContent = testDeliveryFee > 0 ? '$1.50' : 'Free Pickup';
-      
-      return { subtotal: testSubtotal, delivery: testDeliveryFee, total: testTotal };
-    }
-
     function getDeliveryFee() {
       const isDelivery = document.querySelector('input[name="delivery-option"]:checked')?.value === 'delivery';
       const fee = isDelivery ? 1.50 : 0;
       console.log('🚚 getDeliveryFee returning:', fee, 'for option:', isDelivery ? 'delivery' : 'pickup');
       return fee;
+    }
+
+    // FIXED: Updated updateVenmoTotal function with proper subtotal calculation
+    function updateVenmoTotal() {
+      console.log('💰 updateVenmoTotal called');
+      
+      // Calculate subtotal (sum of all cart items)
+      const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
+      console.log('📊 Calculated subtotal:', subtotal);
+      
+      // Get delivery fee
+      const deliveryFee = getDeliveryFee();
+      console.log('🚚 Delivery fee:', deliveryFee);
+      
+      // Calculate total
+      const total = subtotal + deliveryFee;
+      console.log('💯 Final total:', total);
+      
+      // Update all elements
+      const subtotalEl = document.getElementById('cart-subtotal');
+      const deliveryEl = document.getElementById('delivery-fee-display');
+      const totalEl = document.getElementById('venmo-total');
+      
+      if (subtotalEl) {
+        subtotalEl.textContent = subtotal.toFixed(2);
+        console.log('✅ Updated subtotal element to:', subtotal.toFixed(2));
+      } else {
+        console.log('❌ cart-subtotal element not found');
+      }
+      
+      if (deliveryEl) {
+        deliveryEl.textContent = deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : 'Free Pickup';
+        console.log('✅ Updated delivery element to:', deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : 'Free Pickup');
+      } else {
+        console.log('❌ delivery-fee-display element not found');
+      }
+      
+      if (totalEl) {
+        totalEl.textContent = total.toFixed(2);
+        console.log('✅ Updated total element to:', total.toFixed(2));
+      } else {
+        console.log('❌ venmo-total element not found');
+      }
+    }
+
+    // FIXED: Updated updateVenmoLink function
+    function updateVenmoLink() {
+      console.log('🔗 updateVenmoLink called');
+      const venmoLink = document.querySelector('a[href*="venmo.com"]');
+      if (venmoLink && cart.length > 0) {
+        const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
+        const deliveryFee = getDeliveryFee();
+        const total = subtotal + deliveryFee;
+        
+        const orderSummary = generateOrderSummary();
+        const encodedNote = encodeURIComponent(orderSummary);
+        
+        venmoLink.href = `https://venmo.com/YOUR_MOMS_VENMO_USERNAME?txn=pay&amount=${total.toFixed(2)}&note=${encodedNote}`;
+        console.log('✅ Updated Venmo link with total:', total.toFixed(2));
+      }
+    }
+
+    // FIXED: Updated generateOrderSummary function
+    function generateOrderSummary() {
+      const orderItems = cart.map(item => `${item.emoji} ${item.name} ($${parseFloat(item.price).toFixed(2)})`).join(', ');
+      const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
+      const deliveryFee = getDeliveryFee();
+      const total = subtotal + deliveryFee;
+      
+      const deliveryType = document.querySelector('input[name="delivery-option"]:checked')?.value || 'pickup';
+      const deliveryText = deliveryType === 'delivery' ? ' + Delivery $1.50' : '';
+      
+      return `Covenant Hills Bakery Order - ${orderItems}${deliveryText} - Total: $${total.toFixed(2)}`;
+    }
+
+    // FIXED: Updated renderCart function with proper total updates
+    function renderCart() {
+      console.log('🛒 renderCart called with cart:', cart);
+      const cartDiv = document.getElementById('cart');
+      
+      if (cart.length === 0) {
+        cartDiv.innerHTML = '<div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>';
+        document.getElementById('checkout-section').style.display = 'none';
+        updateCartCount();
+        return;
+      }
+
+      document.getElementById('checkout-section').style.display = 'block';
+      resetCheckoutUI();
+
+      let total = 0;
+      let cartHTML = '';
+      
+      cart.forEach((item, index) => {
+        const itemPrice = parseFloat(item.price);
+        total += itemPrice;
+        cartHTML += `
+          <div class="cart-item">
+            <div>
+              <span style="font-size: 1.5rem; margin-right: 10px;">${item.emoji}</span>
+              <strong>${item.name}</strong> - $${itemPrice.toFixed(2)}
+            </div>
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" onclick="removeFromCart(${index})">Remove</button>
+          </div>
+        `;
+      });
+      
+      cartHTML += `<div class="cart-total">Cart Items Total: $${total.toFixed(2)}</div>`;
+      cartDiv.innerHTML = cartHTML;
+      updateCartCount();
+      
+      // CRITICAL: Update checkout totals after rendering
+      setTimeout(() => {
+        console.log('🔄 Auto-updating totals from renderCart');
+        updateVenmoTotal();
+        updateVenmoLink();
+      }, 100);
     }
 
     // Location verification functions
@@ -948,7 +1031,7 @@
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 300000 // 5 minutes
+          maximumAge: 300000
         }
       );
     }
@@ -956,19 +1039,18 @@
     function verifyLocation(position) {
       const { latitude, longitude } = position.coords;
       
-      // Covenant Hills and Ladera Ranch approximate coordinates and boundaries
       const allowedAreas = [
         {
           name: "Covenant Hills",
           centerLat: 33.5567,
           centerLng: -117.6648,
-          radius: 3 // miles
+          radius: 3
         },
         {
           name: "Ladera Ranch", 
           centerLat: 33.5549,
           centerLng: -117.6419,
-          radius: 3 // miles
+          radius: 3
         }
       ];
 
@@ -997,7 +1079,7 @@
     }
 
     function calculateDistance(lat1, lng1, lat2, lng2) {
-      const R = 3959; // Earth's radius in miles
+      const R = 3959;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLng = (lng2 - lng1) * Math.PI / 180;
       const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -1069,7 +1151,6 @@
 
     function checkLocationAgain() {
       showLocationVerification();
-      // Reset button state
       const locationBtn = document.getElementById('location-btn');
       const statusDiv = document.getElementById('location-status');
       locationBtn.disabled = false;
@@ -1078,7 +1159,6 @@
       locationCheckInProgress = false;
     }
 
-    // Modified functions to check location before allowing access
     function requireLocationVerification() {
       if (!locationVerified) {
         showStatus('Please verify your location first to access this feature.', 'warning');
@@ -1111,7 +1191,6 @@
       document.getElementById('cart-count').textContent = cart.length;
     }
 
-    // Helper function to get status color - UPDATED for Venmo
     function getStatusColor(status) {
       switch (status) {
         case 'pending-payment': return '#ff9800';
@@ -1123,7 +1202,6 @@
       }
     }
 
-    // IMPROVED: Visual feedback functions for admin actions
     function showItemUpdateSuccess(itemId) {
       const itemDiv = document.querySelector(`#edit-form-${itemId}`).closest('.admin-menu-item');
       itemDiv.classList.add('admin-action-success');
@@ -1132,7 +1210,6 @@
       }, 2000);
     }
 
-    // Tab functions - UPDATED with auto-refresh for cart
     function switchTab(tabName) {
       if (tabName !== 'cart' && !requireLocationVerification()) return;
       
@@ -1142,7 +1219,6 @@
       document.getElementById(tabName + '-tab').classList.add('active');
       document.getElementById(tabName + '-panel').classList.add('active');
       
-      // Auto-refresh totals when switching to cart tab
       if (tabName === 'cart') {
         console.log('🛒 Switched to cart tab - refreshing totals');
         setTimeout(() => {
@@ -1170,7 +1246,6 @@
         provider.addScope('email');
         provider.addScope('profile');
         
-        // Set custom parameters to handle COOP issues
         provider.setCustomParameters({
           prompt: 'select_account'
         });
@@ -1273,43 +1348,6 @@
       showStatus(`${item.name} removed from cart.`, 'warning');
     }
 
-    function renderCart() {
-      const cartDiv = document.getElementById('cart');
-      
-      if (cart.length === 0) {
-        cartDiv.innerHTML = '<div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>';
-        // Hide checkout section when cart is empty
-        document.getElementById('checkout-section').style.display = 'none';
-        updateCartCount();
-        return;
-      }
-
-      // Show checkout section when cart has items
-      document.getElementById('checkout-section').style.display = 'block';
-      resetCheckoutUI(); // Reset to initial state
-
-      let total = 0;
-      let cartHTML = '';
-      
-      cart.forEach((item, index) => {
-        total += item.price;
-        cartHTML += `
-          <div class="cart-item">
-            <div>
-              <span style="font-size: 1.5rem; margin-right: 10px;">${item.emoji}</span>
-              <strong>${item.name}</strong> - ${item.price.toFixed(2)}
-            </div>
-            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" onclick="removeFromCart(${index})">Remove</button>
-          </div>
-        `;
-      });
-      
-      cartHTML += `<div class="cart-total">Total: ${total.toFixed(2)}</div>`;
-      cartDiv.innerHTML = cartHTML;
-      updateCartCount();
-    }
-
-    // UPDATED: Venmo order submission with delivery options
     async function submitVenmoOrder() {
       if (!requireLocationVerification()) return;
       
@@ -1324,7 +1362,6 @@
         return;
       }
 
-      // Get delivery option and validate
       const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
       let deliveryDetails = {};
 
@@ -1354,7 +1391,6 @@
       const stopLoading = showLoading(submitBtn);
 
       try {
-        // Generate a simple order ID
         const orderId = 'ORDER-' + Date.now().toString().slice(-6);
         const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
         const total = subtotal + deliveryDetails.fee;
@@ -1373,7 +1409,6 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        // Clear cart and show success
         cart = [];
         renderCart();
         
@@ -1383,12 +1418,11 @@
         
         showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
         
-        // Show confirmation message
         document.getElementById('checkout-section').innerHTML = `
           <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
             <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
             <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
-            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> ${total.toFixed(2)}</p>
+            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> $${total.toFixed(2)}</p>
             <p style="margin-bottom: 20px;">${deliveryText}</p>
             <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
             <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
@@ -1403,34 +1437,7 @@
       }
     }
 
-    function updateVenmoTotal() {
-      const total = cart.reduce((sum, item) => sum + item.price, 0);
-      const venmoTotalElement = document.getElementById('venmo-total');
-      if (venmoTotalElement) {
-        venmoTotalElement.textContent = total.toFixed(2);
-      }
-    }
-
-    function generateOrderSummary() {
-      const orderItems = cart.map(item => `${item.emoji} ${item.name} (${item.price.toFixed(2)})`).join(', ');
-      const total = cart.reduce((sum, item) => sum + item.price, 0);
-      return `Covenant Hills Bakery Order - ${orderItems} - Total: ${total.toFixed(2)}`;
-    }
-
-    // Update the Venmo link with order details
-    function updateVenmoLink() {
-      const venmoLink = document.querySelector('a[href*="venmo.com"]');
-      if (venmoLink && cart.length > 0) {
-        const total = cart.reduce((sum, item) => sum + item.price, 0);
-        const orderSummary = generateOrderSummary();
-        const encodedNote = encodeURIComponent(orderSummary);
-        
-        // Update the link to include amount and note
-        venmoLink.href = `https://venmo.com/YOUR_MOMS_VENMO_USERNAME?txn=pay&amount=${total.toFixed(2)}&note=${encodedNote}`;
-      }
-    }
-
-    // IMPROVED Admin functions with better responsiveness
+    // Admin functions
     function toggleAdminView(view) {
       if (view === 'menu') {
         document.getElementById('admin-menu-section').style.display = 'block';
@@ -1455,7 +1462,6 @@
       document.getElementById('item-emoji').value = '';
     }
 
-    // IMPROVED: More responsive submitNewItem function
     async function submitNewItem() {
       const name = document.getElementById('item-name')?.value?.trim() || '';
       const description = document.getElementById('item-description')?.value?.trim() || '';
@@ -1483,7 +1489,6 @@
         showStatus(`✅ ${name} added to menu successfully!`, 'success');
         hideAddItemForm();
         
-        // Refresh both views simultaneously for instant update
         await Promise.all([
           loadAdminMenuItems(),
           loadMenuItems()
@@ -1560,7 +1565,6 @@
       document.getElementById(`edit-form-${itemId}`).style.display = 'none';
     }
 
-    // IMPROVED: Much more responsive saveMenuItem function
     async function saveMenuItem(itemId) {
       const name = document.getElementById(`edit-name-${itemId}`).value.trim();
       const description = document.getElementById(`edit-description-${itemId}`).value.trim();
@@ -1572,7 +1576,6 @@
         return;
       }
 
-      // Show loading state on save button
       const saveBtn = event.target;
       const originalText = saveBtn.textContent;
       saveBtn.innerHTML = '<span class="loading"></span> Saving...';
@@ -1584,14 +1587,11 @@
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
-        // INSTANT UI FEEDBACK
         showStatus("✅ Menu item updated successfully!", 'success');
         showItemUpdateSuccess(itemId);
         
-        // Hide edit form immediately
         cancelEditMenuItem(itemId);
         
-        // Refresh both admin and customer menu views simultaneously
         await Promise.all([
           loadAdminMenuItems(),
           loadMenuItems()
@@ -1601,13 +1601,11 @@
         console.error("Failed to update item:", err);
         showStatus("❌ Failed to update menu item.", 'error');
         
-        // Reset button state on error
         saveBtn.textContent = originalText;
         saveBtn.disabled = false;
       }
     }
 
-    // IMPROVED: More responsive toggleItemStock function
     async function toggleItemStock(itemId, inStock) {
       const btn = event.target;
       const stopLoading = showLoading(btn);
@@ -1620,7 +1618,6 @@
         
         showStatus(`✅ Item ${inStock ? 'restocked' : 'marked out of stock'}!`, 'success');
         
-        // Refresh both views for instant update
         await Promise.all([
           loadAdminMenuItems(),
           loadMenuItems()
@@ -1634,7 +1631,6 @@
       }
     }
 
-    // IMPROVED: More responsive deleteMenuItem function
     async function deleteMenuItem(itemId, itemName) {
       if (!confirm(`Are you sure you want to delete "${itemName}"? This action cannot be undone.`)) {
         return;
@@ -1647,7 +1643,6 @@
         await firebase.firestore().collection('menuItems').doc(itemId).delete();
         showStatus(`✅ "${itemName}" deleted successfully.`, 'success');
         
-        // Refresh both views for instant update
         await Promise.all([
           loadAdminMenuItems(),
           loadMenuItems()
@@ -1685,16 +1680,14 @@
           const orderDiv = document.createElement('div');
           orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
           
-          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>');
+          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>');
           const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
           const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
           
-          // Different display for Venmo orders
           const paymentInfo = order.paymentMethod === 'venmo' 
             ? `<small style="color: #3D95CE;">💳 Venmo Payment</small>` 
             : `<small style="color: #666;">Payment: ${order.paymentMethod || 'N/A'}</small>`;
           
-          // Special handling for pending-payment status
           const statusColor = order.status === 'pending-payment' ? '#ff9800' : getStatusColor(order.status || 'pending');
           const statusText = order.status === 'pending-payment' ? 'AWAITING PAYMENT' : (order.status || 'pending').toUpperCase();
           
@@ -1711,7 +1704,7 @@
               </div>
             </div>
             <div style="margin: 15px 0;">${itemsList}</div>
-            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: ${order.total.toFixed(2)}</div>
+            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: $${order.total.toFixed(2)}</div>
             <div class="order-actions">
               ${order.status === 'pending-payment' ? 
                 `<button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'pending')" style="background: #28a745;">✅ Payment Received</button>` : 
@@ -1731,7 +1724,6 @@
       }
     }
 
-    // IMPROVED: More responsive updateOrderStatus function
     async function updateOrderStatus(orderId, newStatus) {
       const btn = event.target;
       const stopLoading = showLoading(btn);
@@ -1744,7 +1736,6 @@
         
         showStatus(`✅ Order status updated to ${newStatus}!`, 'success');
         
-        // Instantly refresh the orders view
         loadAdminOrders('all');
         
       } catch (err) {
@@ -1755,7 +1746,6 @@
       }
     }
 
-    // IMPROVED: More responsive deleteOrder function
     async function deleteOrder(orderId, userType) {
       const confirmMessage = userType === 'admin' 
         ? `Are you sure you want to permanently delete this order? This action cannot be undone.`
@@ -1769,7 +1759,6 @@
       const stopLoading = showLoading(btn);
 
       try {
-        // If it's a user deletion, check if they own the order
         if (userType === 'user') {
           const orderDoc = await firebase.firestore().collection('orders').doc(orderId).get();
           if (!orderDoc.exists) {
@@ -1788,7 +1777,6 @@
         
         showStatus("✅ Order deleted successfully!", 'success');
         
-        // Instantly refresh the appropriate view
         if (userType === 'admin') {
           loadAdminOrders('all');
         } else {
@@ -1802,7 +1790,6 @@
       }
     }
 
-    // Load menu items
     async function loadMenuItems() {
       try {
         const snapshot = await firebase.firestore().collection('menuItems').where('inStock', '==', true).get();
@@ -1837,7 +1824,6 @@
       }
     }
 
-    // Load user orders
     async function loadUserOrders() {
       if (!currentUser) return;
       
@@ -1884,7 +1870,6 @@
       }
     }
 
-    // Auth state handler
     async function handleAuthStateChange(user) {
       try {
         if (user) {
@@ -1950,7 +1935,6 @@
       }
     }
 
-    // Initialize when DOM loads
     document.addEventListener('DOMContentLoaded', function() {
       try {
         firebase.initializeApp(firebaseConfig);
@@ -1958,7 +1942,6 @@
         updateCartCount();
         console.log('🔥 Firebase initialized successfully!');
         
-        // Test function availability
         console.log('🧪 Testing function availability:');
         console.log('resetCheckoutUI:', typeof resetCheckoutUI);
         console.log('renderCart:', typeof renderCart);
@@ -1967,7 +1950,6 @@
         console.log('forceUpdateTotals:', typeof forceUpdateTotals);
         console.log('updateVenmoTotal:', typeof updateVenmoTotal);
         
-        // Start location verification process
         showLocationVerification();
       } catch (error) {
         console.error('Failed to initialize Firebase:', error);
@@ -1975,7 +1957,6 @@
       }
     });
 
-    // Enter key support
     document.addEventListener('keypress', function(e) {
       if (e.target.id === 'email' || e.target.id === 'password') {
         if (e.key === 'Enter') {
