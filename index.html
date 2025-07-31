@@ -850,7 +850,7 @@
 
   <script>
     // CONFIGURATION - UPDATE THESE VALUES
-    const VENMO_USERNAME = 'YOUR_VENMO_USERNAME'; // Replace with your actual Venmo username (without @)
+    const VENMO_USERNAME = 'audreycrisp'; // Your mom's Venmo username
     
     // Global variables
     let currentUser = null;
@@ -886,12 +886,22 @@
         venmoLink.href = `https://venmo.com/u/${VENMO_USERNAME}`;
       }
       
-      // Warn if username not configured
-      if (VENMO_USERNAME === 'YOUR_VENMO_USERNAME') {
-        console.log('⚠️ IMPORTANT: Update VENMO_USERNAME at the top of the script!');
-        showStatus('Admin: Please configure Venmo username in the code', 'warning');
-      } else {
-        console.log('✅ Venmo payment system initialized with username:', VENMO_USERNAME);
+      console.log('✅ Venmo payment system initialized with username:', VENMO_USERNAME);
+    }
+
+    // Check Firestore permissions for admin features
+    async function checkFirestorePermissions() {
+      console.log('🔐 Checking Firestore permissions for admin features...');
+      
+      try {
+        // Test employees collection access
+        await firebase.firestore().collection('employees').limit(1).get();
+        console.log('✅ Employees collection access confirmed');
+      } catch (err) {
+        if (err.code === 'permission-denied') {
+          console.log('⚠️ Employees collection access denied - Firestore rules need updating');
+          // Don't show immediate error, let the user discover it when they access the tab
+        }
       }
     }
 
@@ -966,7 +976,12 @@
         
       } catch (err) {
         console.error("Failed to add employee:", err);
-        showStatus("❌ Failed to add employee. Please try again.", 'error');
+        
+        if (err.code === 'permission-denied') {
+          showStatus("❌ Permission denied. Please update Firestore security rules for employees collection.", 'error');
+        } else {
+          showStatus(`❌ Failed to add employee: ${err.message}`, 'error');
+        }
       } finally {
         stopLoading();
       }
@@ -2277,6 +2292,9 @@
           if (userData.role === 'admin') {
             document.getElementById('admin-tab').style.display = 'block';
             document.getElementById('employees-tab').style.display = 'block';
+            
+            // Check Firestore permissions for admin features
+            setTimeout(() => checkFirestorePermissions(), 1000);
           }
 
           await loadMenuItems();
