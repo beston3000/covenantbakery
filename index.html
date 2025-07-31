@@ -830,11 +830,49 @@
       measurementId: "G-C41TKNP37H"
     };
 
-    // IMPORTANT: Define resetCheckoutUI early to prevent ReferenceError
+    // IMPORTANT: Define all functions early to prevent ReferenceError
     function resetCheckoutUI() {
       // For Venmo, we don't need to reset anything special
       // This function exists to prevent the ReferenceError
       console.log('Checkout UI reset (Venmo mode)');
+    }
+
+    function updateDeliveryOption() {
+      console.log('📍 updateDeliveryOption called');
+      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
+      console.log('📍 Selected delivery option:', selectedOption);
+      
+      const addressSection = document.getElementById('address-section');
+      
+      if (selectedOption === 'delivery') {
+        addressSection.style.display = 'block';
+      } else {
+        addressSection.style.display = 'none';
+      }
+      
+      // Update totals when delivery option changes
+      setTimeout(() => {
+        updateVenmoTotal();
+        updateVenmoLink();
+      }, 100);
+    }
+
+    function forceUpdateTotals() {
+      console.log('🔄 Force updating totals...');
+      try {
+        updateVenmoTotal();
+        updateVenmoLink();
+        updateDeliveryOption();
+      } catch (error) {
+        console.error('Error in forceUpdateTotals:', error);
+      }
+    }
+
+    function getDeliveryFee() {
+      const isDelivery = document.querySelector('input[name="delivery-option"]:checked')?.value === 'delivery';
+      const fee = isDelivery ? 1.50 : 0;
+      console.log('🚚 getDeliveryFee returning:', fee, 'for option:', isDelivery ? 'delivery' : 'pickup');
+      return fee;
     }
 
     // Location verification functions
@@ -1867,6 +1905,9 @@
         console.log('resetCheckoutUI:', typeof resetCheckoutUI);
         console.log('renderCart:', typeof renderCart);
         console.log('updateCartCount:', typeof updateCartCount);
+        console.log('updateDeliveryOption:', typeof updateDeliveryOption);
+        console.log('forceUpdateTotals:', typeof forceUpdateTotals);
+        console.log('updateVenmoTotal:', typeof updateVenmoTotal);
         
         // Start location verification process
         showLocationVerification();
