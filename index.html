@@ -634,6 +634,12 @@
         console.log('calculateCartSubtotal:', typeof calculateCartSubtotal);
         console.log('processCartDeals:', typeof processCartDeals);
         console.log('changeQuantity:', typeof changeQuantity);
+        console.log('checkLocationAgain:', typeof checkLocationAgain);
+        console.log('requestLocation:', typeof requestLocation);
+        
+        // Make sure key functions are globally accessible
+        window.checkLocationAgain = checkLocationAgain;
+        window.requestLocation = requestLocation;
         
         showLocationVerification();
         
@@ -1957,12 +1963,21 @@
     }
 
     function checkLocationAgain() {
+      console.log('🔄 Checking location again...');
       showLocationVerification();
       const locationBtn = document.getElementById('location-btn');
       const statusDiv = document.getElementById('location-status');
-      locationBtn.disabled = false;
-      locationBtn.textContent = '📍 Share My Location';
-      statusDiv.textContent = '';
+      
+      if (locationBtn) {
+        locationBtn.disabled = false;
+        locationBtn.textContent = '📍 Share My Location';
+      }
+      
+      if (statusDiv) {
+        statusDiv.textContent = '';
+        statusDiv.style.color = '';
+      }
+      
       locationCheckInProgress = false;
     }
 
