@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Covenant Hills Bakery - v2.3</title>
+  <title>Covenant Hills Bakery - v2.4</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -1187,7 +1187,7 @@
           const item = doc.data();
           const option = document.createElement('option');
           option.value = doc.id;
-          option.textContent = `${item.emoji || '🍰'} ${item.name} - ${item.price.toFixed(2)}`;
+          option.textContent = `${item.emoji || '🍰'} ${item.name} - $${item.price.toFixed(2)}`;
           selectElement.appendChild(option);
         });
       } catch (err) {
@@ -1302,7 +1302,7 @@
           } else if (deal.type === 'buy-get') {
             dealDetails = `Buy ${deal.buyQuantity}, Get ${deal.freeQuantity} FREE`;
           } else if (deal.type === 'fixed-discount') {
-            dealDetails = `${deal.fixedAmount.toFixed(2)} OFF`;
+            dealDetails = `$${deal.fixedAmount.toFixed(2)} OFF`;
           }
           
           dealDiv.innerHTML = `
@@ -1518,7 +1518,7 @@
         discountedItem.originalPrice = item.price;
         discountedItem.price = item.price - discount;
         discountedItem.discount = discount;
-        discountedItem.dealInfo = `${discount.toFixed(2)} off`;
+        discountedItem.dealInfo = `$${discount.toFixed(2)} off`;
       }
       // Note: Buy X Get Y deals are handled at checkout level, not per item
       
@@ -1618,7 +1618,7 @@
             <div class="menu-item-description">
               ${employee.email ? `📧 ${employee.email}<br>` : ''}
               ${employee.phone ? `📱 ${employee.phone}<br>` : ''}
-              ${employee.hourlyRate ? `💰 ${employee.hourlyRate.toFixed(2)}/hour` : ''}
+              ${employee.hourlyRate ? `💰 $${employee.hourlyRate.toFixed(2)}/hour` : ''}
             </div>
             <div class="item-controls">
               <button class="btn btn-primary" onclick="editEmployee('${doc.id}')">✏️ Edit</button>
@@ -1850,8 +1850,8 @@
       }
       
       if (deliveryEl) {
-        deliveryEl.textContent = deliveryFee > 0 ? `${deliveryFee.toFixed(2)}` : 'Free Pickup';
-        console.log('✅ Updated delivery element to:', deliveryFee > 0 ? `${deliveryFee.toFixed(2)}` : 'Free Pickup');
+        deliveryEl.textContent = deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : 'Free Pickup';
+        console.log('✅ Updated delivery element to:', deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : 'Free Pickup');
       } else {
         console.log('❌ delivery-fee-display element not found');
       }
@@ -1898,7 +1898,7 @@
 
     // FIXED: Updated generateOrderSummary function with delivery type and order number
     function generateOrderSummary(orderNumber = null) {
-      const orderItems = cart.map(item => `${item.emoji} ${item.name} (${parseFloat(item.price).toFixed(2)})`).join(', ');
+      const orderItems = cart.map(item => `${item.emoji} ${item.name} ($${parseFloat(item.price).toFixed(2)})`).join(', ');
       const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
       const deliveryFee = getDeliveryFee();
       const total = subtotal + deliveryFee;
@@ -1909,10 +1909,10 @@
       // Generate order number if not provided
       const orderNum = orderNumber || ('ORDER-' + Date.now().toString().slice(-6));
       
-      return `Covenant Hills Bakery | ${orderItems} | Delivery Type: ${deliveryText} | Order Number: ${orderNum} | Total: ${total.toFixed(2)}`;
+      return `Covenant Hills Bakery | ${orderItems} | Delivery Type: ${deliveryText} | Order Number: ${orderNum} | Total: $${total.toFixed(2)}`;
     }
 
-    // REVISED: Updated renderCart to group identical items and show quantity
+    // REVISED: Updated renderCart to group identical items and show deal progress
     function renderCart() {
       console.log('🛒 renderCart called with cart:', cart);
       const cartDiv = document.getElementById('cart');
@@ -1935,16 +1935,14 @@
 
       // Group items from the original cart, but use info from processed cart
       cart.forEach((originalItem, index) => {
-        const processedItem = processedCart[index]; // Get corresponding processed item
-        
-        // Create a unique key for grouping. Items with different prices (e.g., due to deals or being free) are grouped separately.
+        const processedItem = processedCart[index];
         const groupKey = `${processedItem.id}-${processedItem.price.toFixed(2)}-${processedItem.isFreeItem || false}`;
         
         if (!itemGroups[groupKey]) {
           itemGroups[groupKey] = {
-            item: processedItem, // Use the processed item for display info
+            item: processedItem,
             quantity: 0,
-            indices: [] // Store original indices from the main cart array
+            indices: []
           };
         }
         
@@ -1959,23 +1957,41 @@
       for (const key in itemGroups) {
         const group = itemGroups[key];
         const item = group.item;
+        const originalItemSample = cart.find(cartItem => cartItem.id === item.id);
         const itemPrice = parseFloat(item.price);
         const originalPrice = item.originalPrice ? parseFloat(item.originalPrice) : itemPrice;
-        
-        // The index to remove is the last one from this group in the original cart array
         const indexToRemove = group.indices[group.indices.length - 1];
 
-        let priceDisplay = `${itemPrice.toFixed(2)}`;
+        let priceDisplay = `$${itemPrice.toFixed(2)}`;
         let dealInfo = '';
 
         if (item.originalPrice && item.originalPrice !== item.price) {
-          priceDisplay = `<span style="text-decoration: line-through; color: #999;">${originalPrice.toFixed(2)}</span> ${itemPrice.toFixed(2)}`;
+          priceDisplay = `<span style="text-decoration: line-through; color: #999;">$${originalPrice.toFixed(2)}</span> $${itemPrice.toFixed(2)}`;
           dealInfo = `<small style="color: #28a745; font-weight: bold;">🏷️ ${item.dealInfo}</small><br>`;
         }
         
         if (item.isFreeItem) {
           priceDisplay = `<span style="color: #28a745; font-weight: bold;">FREE!</span>`;
           dealInfo = `<small style="color: #28a745; font-weight: bold;">🎉 ${item.dealInfo}</small><br>`;
+        }
+
+        // New "in-progress" deal logic
+        if (!item.isFreeItem && originalItemSample && originalItemSample.dealType === 'buy-get') {
+            const totalCount = cart.filter(i => i.id === item.id).length;
+            const needed = originalItemSample.buyQuantity;
+            const free = originalItemSample.freeQuantity;
+            const cycle = needed + free;
+            const remainderInCycle = totalCount % cycle;
+
+            if (remainderInCycle !== 0) {
+                if (remainderInCycle >= needed) {
+                    const itemsToAdd = cycle - remainderInCycle;
+                    dealInfo += `<small style="color: #667eea; font-weight: bold; display: block; margin-top: 4px;">✨ Add ${itemsToAdd} more to get ${free} free!</small>`;
+                } else {
+                    const itemsToQualify = needed - remainderInCycle;
+                    dealInfo += `<small style="color: #667eea; font-weight: bold; display: block; margin-top: 4px;">✨ Add ${itemsToQualify} more to get a deal!</small>`;
+                }
+            }
         }
 
         const quantityDisplay = group.quantity > 1 ? ` <strong style="color: #667eea;">(x${group.quantity})</strong>` : '';
@@ -1998,10 +2014,9 @@
       cartDiv.innerHTML = cartHTML;
       updateCartCount();
       
-      // Update checkout totals after rendering
       setTimeout(() => {
         console.log('🔄 Auto-updating totals from renderCart');
-        forceUpdateTotals(); // Use forceUpdateTotals which relies on the cached processed cart
+        forceUpdateTotals();
       }, 100);
     }
 
@@ -2528,7 +2543,7 @@
           <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
             <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
             <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
-            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> ${total.toFixed(2)}</p>
+            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> $${total.toFixed(2)}</p>
             <p style="margin-bottom: 20px;">${deliveryText}</p>
             <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
             <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
@@ -2808,7 +2823,7 @@
           const orderDiv = document.createElement('div');
           orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
           
-          const itemsList = order.items?.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>') || 'No items';
+          const itemsList = order.items?.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>') || 'No items';
           const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
           const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
           
@@ -2838,9 +2853,9 @@
             </div>
             <div style="margin: 15px 0;">${itemsList}</div>
             <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">
-              Subtotal: ${order.subtotal?.toFixed(2) || '0.00'} | 
-              Delivery: ${order.deliveryDetails?.fee?.toFixed(2) || '0.00'} | 
-              Total: ${order.total?.toFixed(2) || '0.00'}
+              Subtotal: $${order.subtotal?.toFixed(2) || '0.00'} | 
+              Delivery: $${order.deliveryDetails?.fee?.toFixed(2) || '0.00'} | 
+              Total: $${order.total?.toFixed(2) || '0.00'}
             </div>
             <div class="order-actions">
               ${order.status === 'pending-payment' ? 
@@ -2975,7 +2990,7 @@
             } else if (deal.type === 'buy-get') {
               badgeText = `Buy ${deal.buyQuantity} Get ${deal.freeQuantity} FREE`;
             } else if (deal.type === 'fixed-discount') {
-              badgeText = `${deal.fixedAmount.toFixed(2)} OFF`;
+              badgeText = `$${deal.fixedAmount.toFixed(2)} OFF`;
             }
             
             dealBadges += `<div class="deal-badge">${badgeText}</div>`;
@@ -2991,7 +3006,7 @@
               <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
               <div class="menu-item-info">
                 <h3>${item.name}</h3>
-                <div class="menu-item-price">${item.price.toFixed(2)}</div>
+                <div class="menu-item-price">$${item.price.toFixed(2)}</div>
               </div>
             </div>
             <div class="menu-item-description">${item.description}</div>
