@@ -1764,6 +1764,16 @@
       locationCheckInProgress = false;
     }
 
+    // IMMEDIATELY ATTACH TO WINDOW OBJECT
+    window.requestLocation = requestLocation;
+    window.checkLocationAgain = checkLocationAgain;
+    
+    // DEBUG: Log that functions are now available
+    console.log('🔧 Location functions attached to window:', {
+      requestLocation: typeof window.requestLocation,
+      checkLocationAgain: typeof window.checkLocationAgain
+    });
+
     function verifyLocation(position) {
       console.log('🔍 verifyLocation called with position:', position);
       const { latitude, longitude } = position.coords;
@@ -2048,6 +2058,9 @@
       }
     }
 
+    // ATTACH TAB FUNCTION TO WINDOW
+    window.switchTab = switchTab;
+
     // AUTH FUNCTIONS - DEFINED EARLY FOR HTML ONCLICK
     async function signInWithGoogle() {
       console.log('🔐 signInWithGoogle called');
@@ -2152,6 +2165,12 @@
       showStatus('Signed out successfully!', 'success');
     }
 
+    // ATTACH AUTH FUNCTIONS TO WINDOW
+    window.signInWithGoogle = signInWithGoogle;
+    window.signUp = signUp;
+    window.signIn = signIn;
+    window.signOut = signOut;
+
     // CART FUNCTIONS - DEFINED EARLY FOR HTML ONCLICK
     async function addToCart(id, name, price, emoji) {
       console.log('🛒 addToCart called:', {id, name, price, emoji});
@@ -2233,6 +2252,291 @@
       updateCartCount();
       showStatus(`${item.name} removed from cart.`, 'warning');
     }
+
+    // ATTACH CART FUNCTIONS TO WINDOW
+    window.addToCart = addToCart;
+    window.removeFromCart = removeFromCart;
+    window.changeQuantity = changeQuantity;
+
+    // DEBUG: Log all critical functions attached
+    console.log('🔧 All critical functions attached to window:', {
+      requestLocation: typeof window.requestLocation,
+      checkLocationAgain: typeof window.checkLocationAgain,
+      switchTab: typeof window.switchTab,
+      signInWithGoogle: typeof window.signInWithGoogle,
+      signUp: typeof window.signUp,
+      signIn: typeof window.signIn,
+      signOut: typeof window.signOut,
+      addToCart: typeof window.addToCart,
+      removeFromCart: typeof window.removeFromCart,
+      changeQuantity: typeof window.changeQuantity
+    });
+
+    // ADDITIONAL FUNCTIONS FOR HTML ONCLICK HANDLERS
+    function updateDeliveryOption() {
+      console.log('📍 updateDeliveryOption called - AUTO REFRESHING');
+      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
+      console.log('📍 Selected delivery option:', selectedOption);
+      
+      const addressSection = document.getElementById('address-section');
+      
+      if (selectedOption === 'delivery') {
+        if (addressSection) addressSection.style.display = 'block';
+      } else {
+        if (addressSection) addressSection.style.display = 'none';
+      }
+      
+      // IMMEDIATE refresh when delivery option changes
+      console.log('🔄 Auto-refreshing totals due to delivery change');
+      setTimeout(() => {
+        forceUpdateTotals();
+      }, 50);
+    }
+
+    function forceUpdateTotals() {
+      console.log('🔄 === FORCE UPDATE TOTALS ===');
+      try {
+        console.log('📦 Current cart state:', cart);
+        console.log('📦 Cart array length:', cart?.length || 'undefined');
+        
+        if (!cart || cart.length === 0) {
+          console.log('⚠️ Cart is empty or undefined');
+          setTimeout(() => {
+            const subtotalEl = document.getElementById('cart-subtotal');
+            const totalEl = document.getElementById('venmo-total');
+            const deliveryEl = document.getElementById('delivery-fee-display');
+            
+            if (subtotalEl) subtotalEl.textContent = '0.00';
+            if (totalEl) totalEl.textContent = '0.00';
+            if (deliveryEl) deliveryEl.textContent = 'Free Pickup';
+            console.log('✅ Reset all totals to zero');
+          }, 50);
+          return;
+        }
+        
+        updateVenmoTotal();
+        updateVenmoLink();
+        console.log('✅ Force update completed');
+      } catch (error) {
+        console.error('❌ Error in forceUpdateTotals:', error);
+      }
+    }
+
+    function forceRefreshCart() {
+      console.log('🔄 === FORCE REFRESH CART ===');
+      
+      // Clear ALL cached data
+      window.processedCartForCalculations = null;
+      window.finalCartTotal = undefined;
+      window.itemGroupsMap = null;
+      
+      console.log('🧹 Cleared all cached cart data');
+      
+      // Force complete re-render
+      renderCart();
+      
+      showStatus('Cart completely refreshed! Check if items are now stacked.', 'success');
+    }
+
+    function testVenmoPayment() {
+      console.log('🧪 Testing Venmo payment link...');
+      
+      if (cart.length === 0) {
+        console.log('⚠️ Cannot test Venmo payment - cart is empty');
+        showStatus('Add items to cart to test Venmo payment', 'warning');
+        return;
+      }
+      
+      updateVenmoLink();
+      
+      const venmoLink = document.getElementById('venmo-payment-link');
+      if (venmoLink) {
+        console.log('✅ Venmo test complete. Link URL:', venmoLink.href);
+        showStatus('Venmo payment link updated successfully! Check console for details.', 'success');
+        
+        // Show test results in console
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        const subtotal = calculateCartSubtotal();
+        console.log('💰 Test Results:');
+        console.log('   Cart items:', cart.length, 'unique items,', totalItems, 'total quantity');
+        console.log('   Subtotal with deals:', subtotal.toFixed(2));
+        console.log('   Delivery fee:', getDeliveryFee().toFixed(2));
+        console.log('   Final total:', (subtotal + getDeliveryFee()).toFixed(2));
+      } else {
+        console.log('❌ Venmo link element not found');
+        showStatus('Error: Venmo payment link not found', 'error');
+      }
+    }
+
+    function debugCartCalculations() {
+      console.log('🔍 === CART DEBUG ANALYSIS ===');
+      console.log('📦 Raw cart:', cart);
+      console.log('📊 Cart items count:', cart.length);
+      
+      let totalQuantity = 0;
+      let subtotalBeforeDeals = 0;
+      
+      cart.forEach((item, index) => {
+        console.log(`  Item ${index + 1}:`, {
+          name: item.name,
+          quantity: item.quantity,
+          originalPrice: item.originalPrice || item.price,
+          currentPrice: item.price,
+          dealInfo: item.dealInfo || 'No deal',
+          dealType: item.dealType || 'No deal type'
+        });
+        
+        totalQuantity += item.quantity;
+        subtotalBeforeDeals += (item.originalPrice || item.price) * item.quantity;
+      });
+      
+      console.log('📈 Summary:');
+      console.log('   Total quantity:', totalQuantity);
+      console.log('   Subtotal before deals:', subtotalBeforeDeals.toFixed(2));
+      console.log('   Subtotal after deals:', calculateCartSubtotal().toFixed(2));
+      console.log('   Delivery fee:', getDeliveryFee().toFixed(2));
+      console.log('   Final total:', (calculateCartSubtotal() + getDeliveryFee()).toFixed(2));
+      
+      // Test deal processing
+      console.log('🏷️ Testing deal processing...');
+      const processedCart = processCartDeals(cart);
+      console.log('   Processed cart items:', processedCart.length);
+      
+      showStatus('Cart debug analysis complete - check console for details', 'success');
+    }
+
+    async function submitVenmoOrder() {
+      console.log('💳 submitVenmoOrder called');
+      if (!requireLocationVerification()) return;
+      
+      if (!currentUser) {
+        showStatus("Please sign in to place an order.", 'warning');
+        switchTab('account');
+        return;
+      }
+      
+      if (cart.length === 0) {
+        showStatus("Your cart is empty.", 'warning');
+        return;
+      }
+
+      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
+      let deliveryDetails = {};
+
+      if (selectedOption === 'delivery') {
+        const address = document.getElementById('delivery-address')?.value?.trim();
+        if (!address) {
+          showStatus("Please enter a delivery address.", 'warning');
+          document.getElementById('delivery-address')?.focus();
+          return;
+        }
+        
+        deliveryDetails = {
+          type: 'delivery',
+          address: address,
+          instructions: document.getElementById('delivery-instructions')?.value?.trim() || '',
+          fee: 1.50
+        };
+      } else {
+        deliveryDetails = {
+          type: 'pickup',
+          location: '7 Moonlight Isle',
+          fee: 0
+        };
+      }
+
+      const submitBtn = document.getElementById('submit-order-btn');
+      const stopLoading = showLoading(submitBtn);
+
+      try {
+        // Generate order ID first
+        const orderId = 'ORDER-' + Date.now().toString().slice(-6);
+        
+        // Expand cart items for order storage (store each quantity as separate line items)
+        const orderItems = [];
+        cart.forEach(cartItem => {
+          for (let i = 0; i < cartItem.quantity; i++) {
+            orderItems.push({
+              id: cartItem.id,
+              name: cartItem.name,
+              price: cartItem.price,
+              originalPrice: cartItem.originalPrice || cartItem.price,
+              emoji: cartItem.emoji,
+              dealId: cartItem.dealId || null,
+              dealType: cartItem.dealType || null,
+              dealInfo: cartItem.dealInfo || null
+            });
+          }
+        });
+        
+        const subtotal = calculateCartSubtotal();
+        const total = subtotal + deliveryDetails.fee;
+        
+        // Update Venmo link with the specific order number
+        updateVenmoLink(orderId);
+        
+        await firebase.firestore().collection('orders').add({
+          userId: currentUser.uid,
+          userEmail: userData.email,
+          items: orderItems, // Store expanded items
+          cartSummary: cart, // Also store cart summary for reference
+          subtotal: subtotal,
+          deliveryDetails: deliveryDetails,
+          total: total,
+          status: 'pending-payment',
+          paymentMethod: 'venmo',
+          orderId: orderId,
+          customerInstructions: 'Payment via Venmo - pending verification',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        cart = [];
+        renderCart();
+        
+        const deliveryText = deliveryDetails.type === 'delivery' 
+          ? `📍 Delivery to: ${deliveryDetails.address}` 
+          : `🏪 Pickup at: ${deliveryDetails.location}`;
+        
+        showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
+        
+        const checkoutSection = document.getElementById('checkout-section');
+        if (checkoutSection) {
+          checkoutSection.innerHTML = `
+            <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
+              <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
+              <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
+              <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> ${total.toFixed(2)}</p>
+              <p style="margin-bottom: 20px;">${deliveryText}</p>
+              <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
+              <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
+            </div>
+          `;
+        }
+        
+      } catch (err) {
+        console.error("Order submission error:", err);
+        showStatus("Failed to submit order. Please try again.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    // ATTACH ALL ADDITIONAL FUNCTIONS TO WINDOW
+    window.updateDeliveryOption = updateDeliveryOption;
+    window.forceUpdateTotals = forceUpdateTotals;
+    window.forceRefreshCart = forceRefreshCart;
+    window.testVenmoPayment = testVenmoPayment;
+    window.debugCartCalculations = debugCartCalculations;
+    window.submitVenmoOrder = submitVenmoOrder;
+
+    console.log('🔧 Additional functions attached to window:', {
+      updateDeliveryOption: typeof window.updateDeliveryOption,
+      forceUpdateTotals: typeof window.forceUpdateTotals,
+      forceRefreshCart: typeof window.forceRefreshCart,
+      testVenmoPayment: typeof window.testVenmoPayment,
+      debugCartCalculations: typeof window.debugCartCalculations,
+      submitVenmoOrder: typeof window.submitVenmoOrder
+    });
 
     // Helper functions
     function showStatus(message, type = 'success') {
@@ -3298,55 +3602,6 @@
 
     function resetCheckoutUI() {
       console.log('Checkout UI reset (Venmo mode)');
-    }
-
-    function updateDeliveryOption() {
-      console.log('📍 updateDeliveryOption called - AUTO REFRESHING');
-      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
-      console.log('📍 Selected delivery option:', selectedOption);
-      
-      const addressSection = document.getElementById('address-section');
-      
-      if (selectedOption === 'delivery') {
-        if (addressSection) addressSection.style.display = 'block';
-      } else {
-        if (addressSection) addressSection.style.display = 'none';
-      }
-      
-      // IMMEDIATE refresh when delivery option changes
-      console.log('🔄 Auto-refreshing totals due to delivery change');
-      setTimeout(() => {
-        forceUpdateTotals();
-      }, 50);
-    }
-
-    function forceUpdateTotals() {
-      console.log('🔄 === FORCE UPDATE TOTALS ===');
-      try {
-        console.log('📦 Current cart state:', cart);
-        console.log('📦 Cart array length:', cart?.length || 'undefined');
-        
-        if (!cart || cart.length === 0) {
-          console.log('⚠️ Cart is empty or undefined');
-          setTimeout(() => {
-            const subtotalEl = document.getElementById('cart-subtotal');
-            const totalEl = document.getElementById('venmo-total');
-            const deliveryEl = document.getElementById('delivery-fee-display');
-            
-            if (subtotalEl) subtotalEl.textContent = '0.00';
-            if (totalEl) totalEl.textContent = '0.00';
-            if (deliveryEl) deliveryEl.textContent = 'Free Pickup';
-            console.log('✅ Reset all totals to zero');
-          }, 50);
-          return;
-        }
-        
-        updateVenmoTotal();
-        updateVenmoLink();
-        console.log('✅ Force update completed');
-      } catch (error) {
-        console.error('❌ Error in forceUpdateTotals:', error);
-      }
     }
 
     function getDeliveryFee() {
