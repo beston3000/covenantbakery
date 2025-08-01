@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Covenant Hills Bakery - v2.5</title>
+  <title>Covenant Hills Bakery - v2.6</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -1385,7 +1385,7 @@
         const percentageEl = document.getElementById(`edit-deal-percentage-${dealId}`);
         const buyEl = document.getElementById(`edit-deal-buy-${dealId}`);
         const freeEl = document.getElementById(`edit-deal-free-${dealId}`);
-        const fixedEl = document.getElementById(`edit-deal-fixed-${dealId}`);
+        const fixedEl = document.getElementById(`edit-deal-fixed-${doc.id}`);
 
         if (percentageEl) {
           const percentage = parseInt(percentageEl.value);
@@ -1823,11 +1823,8 @@
     function updateVenmoTotal() {
       console.log('💰 updateVenmoTotal called');
       
-      // Use processed cart if available (with deals applied), otherwise use regular cart
-      const cartToUse = window.processedCartForCalculations || cart;
-      
       // Calculate subtotal using actual prices from cart (includes deal discounts)
-      const subtotal = cartToUse.reduce((sum, item) => sum + parseFloat(item.price), 0);
+      const subtotal = cart.reduce((sum, item) => sum + (item.isFree ? 0 : parseFloat(item.price)), 0);
       console.log('📊 Calculated subtotal with deals applied:', subtotal);
       
       // Get delivery fee
@@ -1870,7 +1867,7 @@
       console.log('🔗 updateVenmoLink called');
       const venmoLink = document.getElementById('venmo-payment-link');
       if (venmoLink && cart.length > 0) {
-        const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
+        const subtotal = cart.reduce((sum, item) => sum + (item.isFree ? 0 : parseFloat(item.price)), 0);
         const deliveryFee = getDeliveryFee();
         const total = subtotal + deliveryFee;
         
@@ -1900,7 +1897,7 @@
     // FIXED: Updated generateOrderSummary function with delivery type and order number
     function generateOrderSummary(orderNumber = null) {
       const orderItems = cart.map(item => `${item.emoji} ${item.name} ($${parseFloat(item.price).toFixed(2)})`).join(', ');
-      const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
+      const subtotal = cart.reduce((sum, item) => sum + (item.isFree ? 0 : parseFloat(item.price)), 0);
       const deliveryFee = getDeliveryFee();
       const total = subtotal + deliveryFee;
       
@@ -1913,159 +1910,128 @@
       return `Covenant Hills Bakery | ${orderItems} | Delivery Type: ${deliveryText} | Order Number: ${orderNum} | Total: $${total.toFixed(2)}`;
     }
 
-    // REVISED: Updated renderCart to group identical items and show deal progress
+    // REVISED: renderCart now separates paid and free items
     function renderCart() {
-      console.log('🛒 renderCart called with cart:', cart);
-      const cartDiv = document.getElementById('cart');
-
-      if (cart.length === 0) {
-        cartDiv.innerHTML = '<div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>';
-        document.getElementById('checkout-section').style.display = 'none';
-        updateCartCount();
-        return;
-      }
-
-      document.getElementById('checkout-section').style.display = 'block';
-      resetCheckoutUI();
-
-      // Process deals first to get correct prices and free items
-      const processedCart = processBuyGetDeals(cart);
-      window.processedCartForCalculations = processedCart; // Cache for payment calculations
-
-      const itemGroups = {};
-
-      // Group items from the original cart, but use info from processed cart
-      cart.forEach((originalItem, index) => {
-        const processedItem = processedCart[index];
-        const groupKey = `${processedItem.id}-${processedItem.price.toFixed(2)}-${processedItem.isFreeItem || false}`;
-        
-        if (!itemGroups[groupKey]) {
-          itemGroups[groupKey] = {
-            item: processedItem,
-            quantity: 0,
-            indices: []
-          };
-        }
-        
-        itemGroups[groupKey].quantity++;
-        itemGroups[groupKey].indices.push(index);
-      });
-
-      let total = processedCart.reduce((sum, item) => sum + parseFloat(item.price), 0);
-      let cartHTML = '';
-
-      // Render grouped items
-      for (const key in itemGroups) {
-        const group = itemGroups[key];
-        const item = group.item;
-        const originalItemSample = cart.find(cartItem => cartItem.id === item.id);
-        const itemPrice = parseFloat(item.price);
-        const originalPrice = item.originalPrice ? parseFloat(item.originalPrice) : itemPrice;
-        const indexToRemove = group.indices[group.indices.length - 1];
-
-        let priceDisplay = `$${itemPrice.toFixed(2)}`;
-        let dealInfo = '';
-
-        if (item.originalPrice && item.originalPrice !== item.price) {
-          priceDisplay = `<span style="text-decoration: line-through; color: #999;">$${originalPrice.toFixed(2)}</span> $${itemPrice.toFixed(2)}`;
-          dealInfo = `<small style="color: #28a745; font-weight: bold;">🏷️ ${item.dealInfo}</small><br>`;
-        }
-        
-        if (item.isFreeItem) {
-          priceDisplay = `<span style="color: #28a745; font-weight: bold;">FREE!</span>`;
-          dealInfo = `<small style="color: #28a745; font-weight: bold;">🎉 ${item.dealInfo}</small><br>`;
+        const cartDiv = document.getElementById('cart');
+        if (cart.length === 0) {
+            cartDiv.innerHTML = '<div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>';
+            document.getElementById('checkout-section').style.display = 'none';
+            updateCartCount();
+            return;
         }
 
-        // New "in-progress" deal logic
-        if (!item.isFreeItem && originalItemSample && originalItemSample.dealType === 'buy-get') {
-            const totalCount = cart.filter(i => i.id === item.id).length;
-            const needed = originalItemSample.buyQuantity;
-            const free = originalItemSample.freeQuantity;
-            const cycle = needed + free;
-            const remainderInCycle = totalCount % cycle;
+        document.getElementById('checkout-section').style.display = 'block';
+        resetCheckoutUI();
 
-            if (remainderInCycle !== 0) {
-                if (remainderInCycle >= needed) {
-                    const itemsToAdd = cycle - remainderInCycle;
-                    dealInfo += `<small style="color: #667eea; font-weight: bold; display: block; margin-top: 4px;">✨ Add ${itemsToAdd} more to get ${free} free!</small>`;
-                } else {
-                    const itemsToQualify = needed - remainderInCycle;
-                    dealInfo += `<small style="color: #667eea; font-weight: bold; display: block; margin-top: 4px;">✨ Add ${itemsToQualify} more to get a deal!</small>`;
+        const paidItems = cart.filter(item => !item.isFree);
+        const freeItems = cart.filter(item => item.isFree);
+
+        const groupItems = (items) => {
+            const itemGroups = {};
+            items.forEach((item, index) => {
+                const groupKey = `${item.id}-${item.price.toFixed(2)}`;
+                if (!itemGroups[groupKey]) {
+                    itemGroups[groupKey] = { item, quantity: 0, indices: [] };
                 }
-            }
+                itemGroups[groupKey].quantity++;
+                // Find original index in main cart array for removal
+                itemGroups[groupKey].indices.push(cart.findIndex(cartItem => cartItem === item));
+            });
+            return Object.values(itemGroups);
+        };
+
+        const paidGroups = groupItems(paidItems);
+        const freeGroups = groupItems(freeItems);
+
+        let cartHTML = '';
+
+        // Render paid items
+        paidGroups.forEach(group => {
+            const { item, quantity, indices } = group;
+            const indexToRemove = indices[indices.length - 1]; // Get last index for removal
+            const priceDisplay = `$${parseFloat(item.price).toFixed(2)}`;
+            const quantityDisplay = quantity > 1 ? ` <strong style="color: #667eea;">(x${quantity})</strong>` : '';
+            cartHTML += `
+                <div class="cart-item">
+                    <div>
+                        <span style="font-size: 1.5rem; margin-right: 10px;">${item.emoji}</span>
+                        <span>
+                            <strong>${item.name}</strong>${quantityDisplay} - ${priceDisplay}
+                        </span>
+                    </div>
+                    <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" onclick="removeFromCart(${indexToRemove})">Remove</button>
+                </div>
+            `;
+        });
+
+        // Render free items header and items
+        if (freeGroups.length > 0) {
+            cartHTML += `<h3 style="text-align:center; color: #28a745; margin-top: 20px; margin-bottom: 10px;">🎉 Free Items!</h3>`;
+            freeGroups.forEach(group => {
+                const { item, quantity } = group;
+                const priceDisplay = `<span style="color: #28a745; font-weight: bold;">FREE!</span>`;
+                const quantityDisplay = quantity > 1 ? ` <strong style="color: #28a745;">(x${quantity})</strong>` : '';
+                cartHTML += `
+                    <div class="cart-item has-deal">
+                        <div>
+                            <span style="font-size: 1.5rem; margin-right: 10px;">${item.emoji}</span>
+                            <span>
+                                <strong>${item.name}</strong>${quantityDisplay} - ${priceDisplay}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
         }
 
-        const quantityDisplay = group.quantity > 1 ? ` <strong style="color: #667eea;">(x${group.quantity})</strong>` : '';
-
-        cartHTML += `
-          <div class="cart-item ${item.dealId ? 'has-deal' : ''}">
-            <div>
-              <span style="font-size: 1.5rem; margin-right: 10px;">${item.emoji}</span>
-              <span>
-                <strong>${item.name}</strong>${quantityDisplay} - ${priceDisplay}<br>
-                ${dealInfo}
-              </span>
-            </div>
-            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" onclick="removeFromCart(${indexToRemove})">Remove</button>
-          </div>
-        `;
-      }
-
-      cartHTML += `<div class="cart-total">Cart Items Total: $${total.toFixed(2)}</div>`;
-      cartDiv.innerHTML = cartHTML;
-      updateCartCount();
-      
-      setTimeout(() => {
-        console.log('🔄 Auto-updating totals from renderCart');
+        const total = cart.reduce((sum, item) => sum + (item.isFree ? 0 : parseFloat(item.price)), 0);
+        cartHTML += `<div class="cart-total">Cart Items Total: $${total.toFixed(2)}</div>`;
+        cartDiv.innerHTML = cartHTML;
+        
+        updateCartCount();
         forceUpdateTotals();
-      }, 100);
     }
 
-    // Process buy-X-get-Y deals at cart level
-    function processBuyGetDeals(originalCart) {
-      const processedCart = [...originalCart];
-      const itemGroups = {};
-      
-      // Group items by deal ID for buy-X-get-Y processing
-      originalCart.forEach((item, index) => {
-        if (item.dealId) {
-          // Get the deal info from Firebase (we'll need to store it when adding to cart)
-          if (item.dealType === 'buy-get') {
-            const key = `${item.dealId}-${item.id}`;
-            if (!itemGroups[key]) {
-              itemGroups[key] = {
-                items: [],
-                deal: item
-              };
+    // REVISED: This function now manages adding/removing free items automatically
+    function updateFreeItemsInCart() {
+        const buyGetDealsInCart = cart.reduce((acc, item) => {
+            if (item.dealType === 'buy-get' && !acc.some(d => d.dealId === item.dealId)) {
+                acc.push(item);
             }
-            itemGroups[key].items.push({ ...item, originalIndex: index });
-          }
-        }
-      });
-      
-      // Apply buy-X-get-Y logic
-      Object.values(itemGroups).forEach(group => {
-        const { items, deal } = group;
-        if (deal.dealType === 'buy-get' && items.length >= deal.buyQuantity) {
-          const sets = Math.floor(items.length / deal.buyQuantity);
-          const freeItems = Math.min(sets * deal.freeQuantity, items.length - sets * deal.buyQuantity);
-          
-          // Mark items as free
-          for (let i = 0; i < freeItems; i++) {
-            const freeItemIndex = items[sets * deal.buyQuantity + i].originalIndex;
-            if (processedCart[freeItemIndex]) {
-              processedCart[freeItemIndex] = {
-                ...processedCart[freeItemIndex],
-                price: 0,
-                isFreeItem: true,
-                dealInfo: `Buy ${deal.buyQuantity} Get ${deal.freeQuantity} FREE`
-              };
+            return acc;
+        }, []);
+
+        buyGetDealsInCart.forEach(deal => {
+            const paidItemsForDeal = cart.filter(item => !item.isFree && item.dealId === deal.dealId);
+            const freeItemsForDeal = cart.filter(item => item.isFree && item.dealId === deal.dealId);
+
+            const paidCount = paidItemsForDeal.length;
+            const expectedFreeCount = Math.floor(paidCount / deal.buyQuantity) * deal.freeQuantity;
+            const currentFreeCount = freeItemsForDeal.length;
+
+            if (currentFreeCount < expectedFreeCount) {
+                // Add missing free items
+                const itemsToAdd = expectedFreeCount - currentFreeCount;
+                for (let i = 0; i < itemsToAdd; i++) {
+                    const freeItem = {
+                        ...deal,
+                        price: 0,
+                        isFree: true,
+                        dealInfo: `Free with ${deal.name}`
+                    };
+                    cart.push(freeItem);
+                }
+            } else if (currentFreeCount > expectedFreeCount) {
+                // Remove excess free items
+                const itemsToRemove = currentFreeCount - expectedFreeCount;
+                for (let i = 0; i < itemsToRemove; i++) {
+                    const lastFreeItemIndex = cart.findLastIndex(item => item.isFree && item.dealId === deal.dealId);
+                    if (lastFreeItemIndex > -1) {
+                        cart.splice(lastFreeItemIndex, 1);
+                    }
+                }
             }
-          }
-        }
-      });
-      
-      return processedCart;
+        });
     }
 
     // Location verification functions
@@ -2433,62 +2399,40 @@
       showStatus('Signed out successfully!', 'success');
     }
 
-    // FIXED: Cart functions with proper deal metadata storage
+    // REVISED: addToCart and removeFromCart now use the new updateFreeItemsInCart function
     async function addToCart(id, name, price, emoji) {
-      if (!requireLocationVerification()) return;
-      
-      try {
-        // Get active deals for this item
-        const deals = await getActiveDealsForItem(id);
+        if (!requireLocationVerification()) return;
         
-        let finalItem = { id, name, price: parseFloat(price), emoji };
-        
-        // For buy-X-get-Y deals, store deal info but don't apply discount yet
-        // For percentage/fixed deals, apply immediately
-        if (deals.length > 0) {
-          const bestDeal = deals[0];
-          
-          if (bestDeal.type === 'buy-get') {
-            // Store deal info for cart-level processing
-            finalItem.dealId = bestDeal.id;
-            finalItem.dealType = 'buy-get';
-            finalItem.buyQuantity = bestDeal.buyQuantity;
-            finalItem.freeQuantity = bestDeal.freeQuantity;
-            finalItem.dealInfo = `Buy ${bestDeal.buyQuantity} Get ${bestDeal.freeQuantity} FREE`;
-            // Don't apply discount yet - wait for cart processing
-          } else {
-            // Apply percentage/fixed discounts immediately
-            finalItem = applyDealToItem(finalItem, bestDeal);
-          }
+        try {
+            const deals = await getActiveDealsForItem(id);
+            let finalItem = { id, name, price: parseFloat(price), emoji, isFree: false };
+
+            if (deals.length > 0) {
+                const bestDeal = deals[0]; 
+                if (bestDeal.type === 'buy-get') {
+                    finalItem = { ...finalItem, ...bestDeal, dealType: 'buy-get' };
+                } else {
+                    finalItem = applyDealToItem(finalItem, bestDeal);
+                }
+            }
+
+            cart.push(finalItem);
+            updateFreeItemsInCart(); // Centralized logic for updating deals
+            renderCart();
+            
+            showStatus(`${name} added to cart`, 'success');
+        } catch (err) {
+            console.error("Error adding item to cart:", err);
+            showStatus("Failed to add item to cart.", 'error');
         }
-        
-        console.log('➕ Adding item to cart:', finalItem);
-        cart.push(finalItem);
-        
-        // Re-render cart (this will apply buy-X-get-Y deals)
-        renderCart();
-        updateCartCount();
-        
-        let message = `${name} added to cart`;
-        if (finalItem.dealInfo && finalItem.dealType !== 'buy-get') {
-          message += ` 🏷️ ${finalItem.dealInfo} applied!`;
-        } else if (finalItem.dealType === 'buy-get') {
-          message += ` 🏷️ Deal available: ${finalItem.dealInfo}`;
-        }
-        
-        showStatus(message, 'success');
-      } catch (err) {
-        console.error("Error adding item to cart:", err);
-        showStatus("Failed to add item to cart.", 'error');
-      }
     }
 
     function removeFromCart(index) {
-      const item = cart[index];
-      cart.splice(index, 1);
-      renderCart();
-      updateCartCount();
-      showStatus(`${item.name} removed from cart.`, 'warning');
+        const item = cart[index];
+        cart.splice(index, 1);
+        updateFreeItemsInCart(); // Re-evaluate deals after removal
+        renderCart();
+        showStatus(`${item.name} removed from cart.`, 'warning');
     }
 
     async function submitVenmoOrder() {
@@ -2536,7 +2480,7 @@
       try {
         // Generate order ID first
         const orderId = 'ORDER-' + Date.now().toString().slice(-6);
-        const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+        const subtotal = cart.reduce((sum, item) => sum + (item.isFree ? 0 : item.price), 0);
         const total = subtotal + deliveryDetails.fee;
         
         // Update Venmo link with the specific order number
