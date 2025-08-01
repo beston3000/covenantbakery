@@ -1711,6 +1711,194 @@
       measurementId: "G-C41TKNP37H"
     };
 
+    // LOCATION FUNCTIONS - DEFINED FIRST FOR HTML ONCLICK HANDLERS
+    function requestLocation() {
+      console.log('📍 requestLocation called');
+      if (locationCheckInProgress) return;
+      
+      locationCheckInProgress = true;
+      const statusDiv = document.getElementById('location-status');
+      const locationBtn = document.getElementById('location-btn');
+      
+      if (statusDiv) {
+        statusDiv.innerHTML = '<span class="loading"></span> Checking your location...';
+        statusDiv.style.color = '#d4691a';
+      }
+      
+      if (locationBtn) {
+        locationBtn.disabled = true;
+      }
+
+      if (!navigator.geolocation) {
+        showLocationError('Geolocation is not supported by your browser.');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        verifyLocation,
+        handleLocationError,
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000
+        }
+      );
+    }
+
+    function checkLocationAgain() {
+      console.log('🔄 checkLocationAgain called');
+      showLocationVerification();
+      const locationBtn = document.getElementById('location-btn');
+      const statusDiv = document.getElementById('location-status');
+      
+      if (locationBtn) {
+        locationBtn.disabled = false;
+        locationBtn.textContent = '📍 Share My Location';
+      }
+      
+      if (statusDiv) {
+        statusDiv.textContent = '';
+        statusDiv.style.color = '';
+      }
+      
+      locationCheckInProgress = false;
+    }
+
+    function verifyLocation(position) {
+      console.log('🔍 verifyLocation called with position:', position);
+      const { latitude, longitude } = position.coords;
+      
+      const allowedAreas = [
+        {
+          name: "Covenant Hills",
+          centerLat: 33.5567,
+          centerLng: -117.6648,
+          radius: 3
+        },
+        {
+          name: "Ladera Ranch", 
+          centerLat: 33.5549,
+          centerLng: -117.6419,
+          radius: 3
+        }
+      ];
+
+      let isInServiceArea = false;
+      let nearestArea = null;
+
+      for (const area of allowedAreas) {
+        const distance = calculateDistance(latitude, longitude, area.centerLat, area.centerLng);
+        if (distance <= area.radius) {
+          isInServiceArea = true;
+          nearestArea = area.name;
+          break;
+        }
+      }
+
+      locationCheckInProgress = false;
+
+      if (isInServiceArea) {
+        locationVerified = true;
+        showLocationSuccess(nearestArea);
+        hideLocationVerification();
+        showMainContent();
+      } else {
+        showLocationDenied();
+      }
+    }
+
+    function handleLocationError(error) {
+      console.log('❌ handleLocationError called:', error);
+      locationCheckInProgress = false;
+      let errorMessage = '';
+      
+      switch(error.code) {
+        case error.PERMISSION_DENIED:
+          errorMessage = 'Location access denied. Please enable location services and refresh the page.';
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorMessage = 'Location information unavailable. Please try again.';
+          break;
+        case error.TIMEOUT:
+          errorMessage = 'Location request timed out. Please try again.';
+          break;
+        default:
+          errorMessage = 'An unknown error occurred while retrieving your location.';
+          break;
+      }
+      
+      showLocationError(errorMessage);
+    }
+
+    function showLocationError(message) {
+      const statusDiv = document.getElementById('location-status');
+      const locationBtn = document.getElementById('location-btn');
+      
+      if (statusDiv) {
+        statusDiv.textContent = message;
+        statusDiv.style.color = '#dc3545';
+      }
+      
+      if (locationBtn) {
+        locationBtn.disabled = false;
+        locationBtn.textContent = '📍 Try Again';
+      }
+    }
+
+    function showLocationSuccess(area) {
+      const statusDiv = document.getElementById('location-status');
+      if (statusDiv) {
+        statusDiv.innerHTML = `✅ Location verified! Welcome to our ${area} service area.`;
+        statusDiv.style.color = '#28a745';
+      }
+    }
+
+    function showLocationVerification() {
+      const verification = document.getElementById('location-verification');
+      const denied = document.getElementById('location-denied');
+      const mainContent = document.getElementById('main-content');
+      
+      if (verification) verification.style.display = 'flex';
+      if (denied) denied.style.display = 'none';
+      if (mainContent) mainContent.style.display = 'none';
+    }
+
+    function hideLocationVerification() {
+      const verification = document.getElementById('location-verification');
+      if (verification) verification.style.display = 'none';
+    }
+
+    function showLocationDenied() {
+      const verification = document.getElementById('location-verification');
+      const denied = document.getElementById('location-denied');
+      const mainContent = document.getElementById('main-content');
+      
+      if (verification) verification.style.display = 'none';
+      if (denied) denied.style.display = 'flex';
+      if (mainContent) mainContent.style.display = 'none';
+    }
+
+    function showMainContent() {
+      const mainContent = document.getElementById('main-content');
+      const verification = document.getElementById('location-verification');
+      const denied = document.getElementById('location-denied');
+      
+      if (mainContent) mainContent.style.display = 'block';
+      if (verification) verification.style.display = 'none';  
+      if (denied) denied.style.display = 'none';
+    }
+
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+      const R = 3959;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
     // FIXED: Initialize Venmo payment system
     function initializeVenmoPayment() {
       console.log('💳 Initializing Venmo payment system...');
@@ -1821,172 +2009,229 @@
       showStatus(`Updated ${cart[index].name} quantity to ${newQuantity}`, 'success');
     }
 
-    // Location verification functions
-    function requestLocation() {
-      if (locationCheckInProgress) return;
-      
-      locationCheckInProgress = true;
-      const statusDiv = document.getElementById('location-status');
-      const locationBtn = document.getElementById('location-btn');
-      
-      statusDiv.innerHTML = '<span class="loading"></span> Checking your location...';
-      statusDiv.style.color = '#d4691a';
-      locationBtn.disabled = true;
-
-      if (!navigator.geolocation) {
-        showLocationError('Geolocation is not supported by your browser.');
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        verifyLocation,
-        handleLocationError,
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000
-        }
-      );
-    }
-
-    function verifyLocation(position) {
-      const { latitude, longitude } = position.coords;
-      
-      const allowedAreas = [
-        {
-          name: "Covenant Hills",
-          centerLat: 33.5567,
-          centerLng: -117.6648,
-          radius: 3
-        },
-        {
-          name: "Ladera Ranch", 
-          centerLat: 33.5549,
-          centerLng: -117.6419,
-          radius: 3
-        }
-      ];
-
-      let isInServiceArea = false;
-      let nearestArea = null;
-
-      for (const area of allowedAreas) {
-        const distance = calculateDistance(latitude, longitude, area.centerLat, area.centerLng);
-        if (distance <= area.radius) {
-          isInServiceArea = true;
-          nearestArea = area.name;
-          break;
-        }
-      }
-
-      locationCheckInProgress = false;
-
-      if (isInServiceArea) {
-        locationVerified = true;
-        showLocationSuccess(nearestArea);
-        hideLocationVerification();
-        showMainContent();
-      } else {
-        showLocationDenied();
-      }
-    }
-
-    function calculateDistance(lat1, lng1, lat2, lng2) {
-      const R = 3959;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLng/2) * Math.sin(dLng/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    }
-
-    function handleLocationError(error) {
-      locationCheckInProgress = false;
-      let errorMessage = '';
-      
-      switch(error.code) {
-        case error.PERMISSION_DENIED:
-          errorMessage = 'Location access denied. Please enable location services and refresh the page.';
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMessage = 'Location information unavailable. Please try again.';
-          break;
-        case error.TIMEOUT:
-          errorMessage = 'Location request timed out. Please try again.';
-          break;
-        default:
-          errorMessage = 'An unknown error occurred while retrieving your location.';
-          break;
-      }
-      
-      showLocationError(errorMessage);
-    }
-
-    function showLocationError(message) {
-      const statusDiv = document.getElementById('location-status');
-      const locationBtn = document.getElementById('location-btn');
-      
-      statusDiv.textContent = message;
-      statusDiv.style.color = '#dc3545';
-      locationBtn.disabled = false;
-      locationBtn.textContent = '📍 Try Again';
-    }
-
-    function showLocationSuccess(area) {
-      const statusDiv = document.getElementById('location-status');
-      statusDiv.innerHTML = `✅ Location verified! Welcome to our ${area} service area.`;
-      statusDiv.style.color = '#28a745';
-    }
-
-    function showLocationVerification() {
-      document.getElementById('location-verification').style.display = 'flex';
-      document.getElementById('location-denied').style.display = 'none';
-      document.getElementById('main-content').style.display = 'none';
-    }
-
-    function hideLocationVerification() {
-      document.getElementById('location-verification').style.display = 'none';
-    }
-
-    function showLocationDenied() {
-      document.getElementById('location-verification').style.display = 'none';
-      document.getElementById('location-denied').style.display = 'flex';
-      document.getElementById('main-content').style.display = 'none';
-    }
-
-    function showMainContent() {
-      document.getElementById('main-content').style.display = 'block';
-      document.getElementById('location-verification').style.display = 'none';
-      document.getElementById('location-denied').style.display = 'none';
-    }
-
-    function checkLocationAgain() {
-      console.log('🔄 Checking location again...');
-      showLocationVerification();
-      const locationBtn = document.getElementById('location-btn');
-      const statusDiv = document.getElementById('location-status');
-      
-      if (locationBtn) {
-        locationBtn.disabled = false;
-        locationBtn.textContent = '📍 Share My Location';
-      }
-      
-      if (statusDiv) {
-        statusDiv.textContent = '';
-        statusDiv.style.color = '';
-      }
-      
-      locationCheckInProgress = false;
-    }
-
     function requireLocationVerification() {
       if (!locationVerified) {
         showStatus('Please verify your location first to access this feature.', 'warning');
         return false;
       }
       return true;
+    }
+
+    // TAB SWITCHING - DEFINED EARLY FOR HTML ONCLICK
+    function switchTab(tabName) {
+      console.log('🔄 switchTab called:', tabName);
+      if (tabName !== 'cart' && !requireLocationVerification()) return;
+      
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+      
+      const tabButton = document.getElementById(tabName + '-tab');
+      const tabPanel = document.getElementById(tabName + '-panel');
+      
+      if (tabButton) tabButton.classList.add('active');
+      if (tabPanel) tabPanel.classList.add('active');
+      
+      if (tabName === 'cart') {
+        console.log('🛒 Switched to cart tab - refreshing totals');
+        setTimeout(() => {
+          forceUpdateTotals();
+        }, 200);
+      } else if (tabName === 'orders' && currentUser) {
+        loadUserOrders();
+      } else if (tabName === 'admin' && userData?.role === 'admin') {
+        loadAdminMenuItems();
+        loadAdminOrders('all');
+        // Initialize deals view
+        toggleAdminView('menu');
+      } else if (tabName === 'employees' && userData?.role === 'admin') {
+        loadEmployees();
+      }
+    }
+
+    // AUTH FUNCTIONS - DEFINED EARLY FOR HTML ONCLICK
+    async function signInWithGoogle() {
+      console.log('🔐 signInWithGoogle called');
+      if (!requireLocationVerification()) return;
+      
+      const googleBtn = event.target;
+      const stopLoading = showLoading(googleBtn);
+
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope('email');
+        provider.addScope('profile');
+        
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
+        
+        const result = await firebase.auth().signInWithPopup(provider);
+        showStatus(`Welcome ${result.user.displayName || result.user.email}!`, 'success');
+      } catch (error) {
+        console.error("Google sign in error:", error);
+        if (error.code === 'auth/popup-blocked') {
+          showStatus("Popup was blocked. Please allow popups for this site and try again.", 'error');
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          showStatus("Sign in was cancelled.", 'warning');
+        } else {
+          showStatus("Google sign in failed. Please try again.", 'error');
+        }
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function signUp() {
+      console.log('🔐 signUp called');
+      if (!requireLocationVerification()) return;
+      
+      const email = document.getElementById('email')?.value;
+      const password = document.getElementById('password')?.value;
+      
+      if (!email || !password) {
+        showStatus('Please enter both email and password.', 'warning');
+        return;
+      }
+
+      const signUpBtn = event.target;
+      const stopLoading = showLoading(signUpBtn);
+
+      try {
+        const result = await firebase.auth().createUserWithEmailAndPassword(email, password);
+        await firebase.firestore().collection('users').doc(result.user.uid).set({
+          email,
+          role: 'customer',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus("Account created successfully!", 'success');
+        const emailEl = document.getElementById('email');
+        const passwordEl = document.getElementById('password');
+        if (emailEl) emailEl.value = '';
+        if (passwordEl) passwordEl.value = '';
+      } catch (error) {
+        showStatus(error.message, 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function signIn() {
+      console.log('🔐 signIn called');
+      if (!requireLocationVerification()) return;
+      
+      const email = document.getElementById('email')?.value;
+      const password = document.getElementById('password')?.value;
+      
+      if (!email || !password) {
+        showStatus('Please enter both email and password.', 'warning');
+        return;
+      }
+
+      const signInBtn = event.target;
+      const stopLoading = showLoading(signInBtn);
+
+      try {
+        await firebase.auth().signInWithEmailAndPassword(email, password);
+        const emailEl = document.getElementById('email');
+        const passwordEl = document.getElementById('password');
+        if (emailEl) emailEl.value = '';
+        if (passwordEl) passwordEl.value = '';
+        showStatus('Signed in successfully!', 'success');
+      } catch (error) {
+        showStatus(error.message, 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    function signOut() {
+      console.log('🔐 signOut called');
+      firebase.auth().signOut();
+      cart = [];
+      renderCart();
+      showStatus('Signed out successfully!', 'success');
+    }
+
+    // CART FUNCTIONS - DEFINED EARLY FOR HTML ONCLICK
+    async function addToCart(id, name, price, emoji) {
+      console.log('🛒 addToCart called:', {id, name, price, emoji});
+      if (!requireLocationVerification()) return;
+      
+      try {
+        // Get active deals for this item
+        const deals = await getActiveDealsForItem(id);
+        
+        // Check if item already exists in cart
+        const existingItemIndex = cart.findIndex(item => 
+          item.id === id && 
+          (!item.dealId || (deals.length > 0 && item.dealId === deals[0].id))
+        );
+        
+        if (existingItemIndex !== -1) {
+          // Item exists, increase quantity
+          cart[existingItemIndex].quantity += 1;
+          console.log(`📦 Increased quantity of ${name} to ${cart[existingItemIndex].quantity}`);
+          showStatus(`${name} quantity increased to ${cart[existingItemIndex].quantity}!`, 'success');
+        } else {
+          // New item, add to cart
+          let newItem = { 
+            id, 
+            name, 
+            price: parseFloat(price), 
+            originalPrice: parseFloat(price),
+            emoji,
+            quantity: 1
+          };
+          
+          // Apply deals
+          if (deals.length > 0) {
+            const bestDeal = deals[0]; // Use first active deal
+            
+            if (bestDeal.type === 'percentage') {
+              const discount = (newItem.price * bestDeal.percentage) / 100;
+              newItem.price = newItem.price - discount;
+              newItem.dealId = bestDeal.id;
+              newItem.dealType = 'percentage';
+              newItem.dealInfo = `${bestDeal.percentage}% off`;
+            } else if (bestDeal.type === 'fixed-discount') {
+              const discount = Math.min(bestDeal.fixedAmount, newItem.price);
+              newItem.price = newItem.price - discount;
+              newItem.dealId = bestDeal.id;
+              newItem.dealType = 'fixed-discount';
+              newItem.dealInfo = `${discount.toFixed(2)} off`;
+            } else if (bestDeal.type === 'buy-get') {
+              newItem.dealId = bestDeal.id;
+              newItem.dealType = 'buy-get';
+              newItem.buyQuantity = bestDeal.buyQuantity;
+              newItem.freeQuantity = bestDeal.freeQuantity;
+              newItem.dealInfo = `Buy ${bestDeal.buyQuantity} Get ${bestDeal.freeQuantity} FREE`;
+            }
+          }
+          
+          console.log('➕ Adding new item to cart:', newItem);
+          cart.push(newItem);
+          showStatus(`${name} added to cart!`, 'success');
+        }
+        
+        // Re-render cart and update count
+        renderCart();
+        updateCartCount();
+        
+      } catch (err) {
+        console.error("Error adding item to cart:", err);
+        showStatus("Failed to add item to cart.", 'error');
+      }
+    }
+
+    function removeFromCart(index) {
+      console.log('🗑️ removeFromCart called:', index);
+      if (index < 0 || index >= cart.length) return;
+      
+      const item = cart[index];
+      cart.splice(index, 1);
+      renderCart();
+      updateCartCount();
+      showStatus(`${item.name} removed from cart.`, 'warning');
     }
 
     // Helper functions
