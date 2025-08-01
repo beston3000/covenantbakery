@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Covenant Hills Bakery - v2.7</title>
+  <title>Covenant Hills Bakery - v2.8</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -1052,7 +1052,71 @@
       measurementId: "G-C41TKNP37H"
     };
 
-    // FIXED: Initialize Venmo payment system
+    // All function definitions moved up to avoid ReferenceErrors
+    
+    // Helper functions
+    function showStatus(message, type = 'success') {
+        const statusDiv = document.getElementById('status-messages');
+        const messageKey = `${type}-${message.replace(/\s+/g, '-')}`;
+        let existingMessageDiv = document.querySelector(`.status-message[data-key="${messageKey}"]`);
+
+        if (existingMessageDiv) {
+            let count = parseInt(existingMessageDiv.getAttribute('data-count') || '1') + 1;
+            existingMessageDiv.setAttribute('data-count', count);
+            existingMessageDiv.textContent = `${message} (x${count})`;
+
+            if (notificationTimers[messageKey]) {
+                clearTimeout(notificationTimers[messageKey]);
+            }
+
+            notificationTimers[messageKey] = setTimeout(() => {
+                existingMessageDiv.remove();
+                delete notificationTimers[messageKey];
+            }, 5000);
+        } else {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `status-message status-${type}`;
+            messageDiv.textContent = message;
+            messageDiv.setAttribute('data-key', messageKey);
+            messageDiv.setAttribute('data-count', '1');
+            statusDiv.appendChild(messageDiv);
+
+            notificationTimers[messageKey] = setTimeout(() => {
+                messageDiv.remove();
+                delete notificationTimers[messageKey];
+            }, 5000);
+        }
+    }
+
+    function showLoading(buttonElement) {
+      const originalText = buttonElement.textContent;
+      buttonElement.innerHTML = '<span class="loading"></span> Loading...';
+      buttonElement.disabled = true;
+      return () => {
+        buttonElement.textContent = originalText;
+        buttonElement.disabled = false;
+      };
+    }
+
+    function getStatusColor(status) {
+      switch (status) {
+        case 'pending-payment': return '#ff9800';
+        case 'pending': return '#ffc107';
+        case 'preparing': return '#17a2b8';
+        case 'completed': return '#28a745';
+        case 'cancelled': return '#dc3545';
+        default: return '#6c757d';
+      }
+    }
+
+    function showItemUpdateSuccess(itemId) {
+      const itemDiv = document.querySelector(`#edit-form-${itemId}`).closest('.admin-menu-item');
+      itemDiv.classList.add('admin-action-success');
+      setTimeout(() => {
+        itemDiv.classList.remove('admin-action-success');
+      }, 2000);
+    }
+
     function initializeVenmoPayment() {
       console.log('💳 Initializing Venmo payment system...');
       
@@ -1070,95 +1134,7 @@
       
       console.log('✅ Venmo payment system initialized with username:', VENMO_USERNAME);
     }
-
-    // Check Firestore permissions for admin features
-    async function checkFirestorePermissions() {
-      console.log('🔐 Checking Firestore permissions for admin features...');
-      
-      try {
-        // Test employees collection access
-        await firebase.firestore().collection('employees').limit(1).get();
-        console.log('✅ Employees collection access confirmed');
-      } catch (err) {
-        if (err.code === 'permission-denied') {
-          console.log('⚠️ Employees collection access denied - Firestore rules need updating');
-          // Don't show immediate error, let the user discover it when they access the tab
-        }
-      }
-    }
-
-    // Force complete cart refresh - clears all cache and re-renders
-    function forceRefreshCart() {
-      console.log('🔄 === FORCE REFRESH CART ===');
-      
-      // Clear ALL cached data
-      window.processedCartForCalculations = null;
-      window.finalCartTotal = undefined;
-      window.itemGroupsMap = null;
-      
-      console.log('🧹 Cleared all cached cart data');
-      
-      // Force complete re-render
-      renderCart();
-      
-      showStatus('Cart completely refreshed! Check if items are now stacked.', 'success');
-    }
-
-    // Test Venmo payment link functionality
-    function testVenmoPayment() {
-      console.log('🧪 Testing Venmo payment link...');
-      
-      if (cart.length === 0) {
-        console.log('⚠️ Cannot test Venmo payment - cart is empty');
-        showStatus('Add items to cart to test Venmo payment', 'warning');
-        return;
-      }
-      
-      // Force update the processed cart
-      if (window.processedCartForCalculations) {
-        console.log('🔄 Using processed cart with deals for test');
-      }
-      
-      updateVenmoLink();
-      
-      const venmoLink = document.getElementById('venmo-payment-link');
-      if (venmoLink) {
-        console.log('✅ Venmo test complete. Link URL:', venmoLink.href);
-        showStatus('Venmo payment link updated successfully! Check console for details.', 'success');
-        
-        // Show test results in console
-        const cartToUse = window.processedCartForCalculations || cart;
-        const subtotal = cartToUse.reduce((sum, item) => sum + parseFloat(item.price), 0);
-        console.log('💰 Test Results:');
-        console.log('   Cart items:', cartToUse.length);
-        console.log('   Subtotal with deals:', subtotal.toFixed(2));
-        console.log('   Delivery fee:', getDeliveryFee().toFixed(2));
-        console.log('   Final total:', (subtotal + getDeliveryFee()).toFixed(2));
-      } else {
-        console.log('❌ Venmo link element not found');
-        showStatus('Error: Venmo payment link not found', 'error');
-      }
-    }
-
-    // DEALS MANAGEMENT FUNCTIONS
-    function showAddDealForm() {
-      document.getElementById('add-deal-form').style.display = 'block';
-      loadMenuItemsForDeals();
-    }
-
-    function hideAddDealForm() {
-      document.getElementById('add-deal-form').style.display = 'none';
-      document.getElementById('deal-name').value = '';
-      document.getElementById('deal-type').value = 'percentage';
-      document.getElementById('deal-menu-item').value = '';
-      document.getElementById('deal-percentage').value = '';
-      document.getElementById('deal-buy-quantity').value = '';
-      document.getElementById('deal-free-quantity').value = '';
-      document.getElementById('deal-fixed-amount').value = '';
-      document.getElementById('deal-description').value = '';
-      toggleDealFields();
-    }
-
+    
     function toggleDealFields() {
       const dealType = document.getElementById('deal-type').value;
       
@@ -1177,592 +1153,196 @@
       }
     }
 
-    async function loadMenuItemsForDeals() {
+    // Admin functions
+    async function loadAdminMenuItems() {
+      if (!userData || userData.role !== 'admin') return;
+      
       try {
-        const snapshot = await firebase.firestore().collection('menuItems').where('inStock', '==', true).get();
-        const selectElement = document.getElementById('deal-menu-item');
+        const snapshot = await firebase.firestore().collection('menuItems').orderBy('createdAt', 'desc').get();
+        const menuDiv = document.getElementById('admin-menu-items');
         
-        selectElement.innerHTML = '<option value="">Select a menu item...</option>';
-        
+        if (snapshot.empty) {
+          menuDiv.innerHTML = '<div class="empty-state"><p>No menu items yet.</p></div>';
+          return;
+        }
+
+        menuDiv.innerHTML = '';
         snapshot.forEach(doc => {
           const item = doc.data();
-          const option = document.createElement('option');
-          option.value = doc.id;
-          option.textContent = `${item.emoji || '🍰'} ${item.name} - $${item.price.toFixed(2)}`;
-          selectElement.appendChild(option);
-        });
-      } catch (err) {
-        console.error("Error loading menu items for deals:", err);
-        showStatus("Failed to load menu items for deals.", 'error');
-      }
-    }
-
-    async function submitNewDeal() {
-      const name = document.getElementById('deal-name')?.value?.trim() || '';
-      const type = document.getElementById('deal-type')?.value || '';
-      const menuItemId = document.getElementById('deal-menu-item')?.value || '';
-      const description = document.getElementById('deal-description')?.value?.trim() || '';
-
-      if (!name || !menuItemId) {
-        showStatus("Please enter deal name and select a menu item.", 'warning');
-        return;
-      }
-
-      let dealData = {
-        name,
-        type,
-        menuItemId,
-        description,
-        isActive: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        createdBy: currentUser.uid
-      };
-
-      // Add type-specific data
-      if (type === 'percentage') {
-        const percentage = parseInt(document.getElementById('deal-percentage')?.value || 0);
-        if (percentage <= 0 || percentage >= 100) {
-          showStatus("Please enter a valid percentage between 1 and 99.", 'warning');
-          return;
-        }
-        dealData.percentage = percentage;
-      } else if (type === 'buy-get') {
-        const buyQuantity = parseInt(document.getElementById('deal-buy-quantity')?.value || 0);
-        const freeQuantity = parseInt(document.getElementById('deal-free-quantity')?.value || 0);
-        if (buyQuantity <= 0 || freeQuantity <= 0) {
-          showStatus("Please enter valid buy and free quantities.", 'warning');
-          return;
-        }
-        dealData.buyQuantity = buyQuantity;
-        dealData.freeQuantity = freeQuantity;
-      } else if (type === 'fixed-discount') {
-        const fixedAmount = parseFloat(document.getElementById('deal-fixed-amount')?.value || 0);
-        if (fixedAmount <= 0) {
-          showStatus("Please enter a valid discount amount.", 'warning');
-          return;
-        }
-        dealData.fixedAmount = fixedAmount;
-      }
-
-      const submitBtn = event.target;
-      const stopLoading = showLoading(submitBtn);
-
-      try {
-        await firebase.firestore().collection('deals').add(dealData);
-        
-        showStatus(`✅ Deal "${name}" created successfully!`, 'success');
-        hideAddDealForm();
-        loadDeals();
-        
-        // Refresh menu to show new deals
-        if (currentUser) {
-          loadMenuItems();
-        }
-        
-      } catch (err) {
-        console.error("Failed to create deal:", err);
-        showStatus("❌ Failed to create deal. Please try again.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function loadDeals() {
-      if (!userData || userData.role !== 'admin') return;
-      
-      try {
-        const snapshot = await firebase.firestore().collection('deals').orderBy('createdAt', 'desc').get();
-        const dealsDiv = document.getElementById('deals-list');
-        
-        if (snapshot.empty) {
-          dealsDiv.innerHTML = '<div class="empty-state"><p>No deals created yet.</p></div>';
-          return;
-        }
-
-        dealsDiv.innerHTML = '';
-        
-        // Get menu items for reference
-        const menuSnapshot = await firebase.firestore().collection('menuItems').get();
-        const menuItems = {};
-        menuSnapshot.forEach(doc => {
-          menuItems[doc.id] = doc.data();
-        });
-
-        snapshot.forEach(doc => {
-          const deal = doc.data();
-          const menuItem = menuItems[deal.menuItemId];
-          
-          if (!menuItem) return; // Skip if menu item no longer exists
-          
-          const dealDiv = document.createElement('div');
-          dealDiv.className = `admin-menu-item ${!deal.isActive ? 'out-of-stock' : ''}`;
-          
-          let dealDetails = '';
-          if (deal.type === 'percentage') {
-            dealDetails = `${deal.percentage}% OFF`;
-          } else if (deal.type === 'buy-get') {
-            dealDetails = `Buy ${deal.buyQuantity}, Get ${deal.freeQuantity} FREE`;
-          } else if (deal.type === 'fixed-discount') {
-            dealDetails = `$${deal.fixedAmount.toFixed(2)} OFF`;
-          }
-          
-          dealDiv.innerHTML = `
-            <div class="stock-indicator ${deal.isActive ? 'in-stock' : 'out-of-stock'}">
-              ${deal.isActive ? 'Active' : 'Inactive'}
+          const itemDiv = document.createElement('div');
+          itemDiv.className = `admin-menu-item ${!item.inStock ? 'out-of-stock' : ''}`;
+          itemDiv.innerHTML = `
+            <div class="stock-indicator ${item.inStock ? 'in-stock' : 'out-of-stock'}">
+              ${item.inStock ? 'In Stock' : 'Out of Stock'}
             </div>
             <div class="menu-item-header">
-              <div class="menu-item-emoji">🏷️</div>
+              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
               <div class="menu-item-info">
-                <h3>${deal.name}</h3>
-                <div class="menu-item-price">${dealDetails}</div>
+                <h3>${item.name}</h3>
+                <div class="menu-item-price">$${item.price.toFixed(2)}</div>
               </div>
             </div>
-            <div class="menu-item-description">
-              <strong>Item:</strong> ${menuItem.emoji || '🍰'} ${menuItem.name}<br>
-              ${deal.description ? `<strong>Description:</strong> ${deal.description}<br>` : ''}
-              <strong>Type:</strong> ${deal.type.replace('-', ' ').toUpperCase()}
-            </div>
+            <div class="menu-item-description">${item.description}</div>
             <div class="item-controls">
-              <button class="btn btn-primary" onclick="editDeal('${doc.id}')">✏️ Edit</button>
-              <button class="btn ${deal.isActive ? 'btn-danger' : 'btn-success'}" onclick="toggleDealStatus('${doc.id}', ${!deal.isActive})">
-                ${deal.isActive ? '❌ Deactivate' : '✅ Activate'}
+              <button class="btn btn-primary" onclick="editMenuItem('${doc.id}')">✏️ Edit</button>
+              <button class="btn ${item.inStock ? 'btn-danger' : 'btn-success'}" onclick="toggleItemStock('${doc.id}', ${!item.inStock})">
+                ${item.inStock ? '❌ Out of Stock' : '✅ In Stock'}
               </button>
-              <button class="btn btn-danger" onclick="deleteDeal('${doc.id}', '${deal.name}')">🗑️ Delete</button>
+              <button class="btn btn-danger" onclick="deleteMenuItem('${doc.id}', '${item.name}')">🗑️ Delete</button>
             </div>
-            <div id="edit-deal-form-${doc.id}" class="edit-form" style="display: none;">
-              <input id="edit-deal-name-${doc.id}" value="${deal.name}" placeholder="Deal Name">
-              <input id="edit-deal-description-${doc.id}" value="${deal.description || ''}" placeholder="Description">
-              ${deal.type === 'percentage' ? `<input id="edit-deal-percentage-${doc.id}" type="number" value="${deal.percentage}" placeholder="Percentage">` : ''}
-              ${deal.type === 'buy-get' ? `
-                <input id="edit-deal-buy-${doc.id}" type="number" value="${deal.buyQuantity}" placeholder="Buy Quantity">
-                <input id="edit-deal-free-${doc.id}" type="number" value="${deal.freeQuantity}" placeholder="Free Quantity">
-              ` : ''}
-              ${deal.type === 'fixed-discount' ? `<input id="edit-deal-fixed-${doc.id}" type="number" step="0.01" value="${deal.fixedAmount}" placeholder="Fixed Amount">` : ''}
+            <div id="edit-form-${doc.id}" class="edit-form" style="display: none;">
+              <input id="edit-name-${doc.id}" value="${item.name}" placeholder="Name">
+              <input id="edit-description-${doc.id}" value="${item.description}" placeholder="Description">
+              <input id="edit-price-${doc.id}" type="number" step="0.01" value="${item.price}" placeholder="Price">
+              <input id="edit-emoji-${doc.id}" value="${item.emoji || ''}" placeholder="Emoji">
               <div style="margin-top: 10px;">
-                <button class="btn btn-success" onclick="saveDeal('${doc.id}')">💾 Save</button>
-                <button class="btn btn-secondary" onclick="cancelEditDeal('${doc.id}')">❌ Cancel</button>
+                <button class="btn btn-success" onclick="saveMenuItem('${doc.id}')">💾 Save</button>
+                <button class="btn btn-secondary" onclick="cancelEditMenuItem('${doc.id}')">❌ Cancel</button>
               </div>
             </div>
           `;
-          dealsDiv.appendChild(dealDiv);
+          menuDiv.appendChild(itemDiv);
         });
       } catch (err) {
-        console.error("Error loading deals:", err);
-        showStatus("Failed to load deals.", 'error');
+        console.error("Error loading admin menu items:", err);
+        showStatus("Failed to load menu items.", 'error');
       }
     }
+    
+    async function loadAdminOrders(filter = 'all') {
+        if (!userData || userData.role !== 'admin') return;
+        
+        console.log('📋 Loading admin orders with filter:', filter);
+        
+        try {
+            let query = firebase.firestore().collection('orders');
+            
+            if (filter !== 'all') {
+                query = query.where('status', '==', filter);
+            }
+            
+            const snapshot = await query.get();
+            const ordersDiv = document.getElementById('admin-orders-list');
+            
+            if (snapshot.empty) {
+                ordersDiv.innerHTML = `<div class="empty-state"><p>No ${filter} orders found.</p></div>`;
+                return;
+            }
 
-    function editDeal(dealId) {
-      document.getElementById(`edit-deal-form-${dealId}`).style.display = 'block';
+            let orders = [];
+            snapshot.forEach(doc => {
+                orders.push({ id: doc.id, ...doc.data() });
+            });
+
+            // Sort by creation date client-side
+            orders.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+
+            ordersDiv.innerHTML = '';
+            orders.forEach(order => {
+                const docId = order.id;
+                const orderDiv = document.createElement('div');
+                orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
+                
+                const itemsList = order.items?.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>') || 'No items';
+                const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
+                const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
+                
+                const paymentInfo = order.paymentMethod === 'venmo' 
+                    ? `<small style="color: #3D95CE;">💳 Venmo Payment</small>` 
+                    : `<small style="color: #666;">Payment: ${order.paymentMethod || 'N/A'}</small>`;
+                
+                const statusColor = getStatusColor(order.status || 'pending');
+                const statusText = (order.status || 'pending').replace('-', ' ').toUpperCase();
+                
+                const deliveryInfo = order.deliveryDetails ? 
+                    `<small style="color: #666;">📍 ${order.deliveryDetails.type === 'delivery' ? 'Delivery to: ' + order.deliveryDetails.address : 'Pickup at: ' + order.deliveryDetails.location}</small><br>` : '';
+                
+                orderDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;">
+                        <div>
+                            <strong>Order #${order.orderId || docId.slice(-6)}</strong><br>
+                            <small style="color: #666;">${orderDate} ${orderTime}</small><br>
+                            <small style="color: #666;">Customer: ${order.userEmail}</small><br>
+                            ${deliveryInfo}
+                            ${paymentInfo}
+                        </div>
+                        <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${statusColor}; color: white;">
+                            ${statusText}
+                        </div>
+                    </div>
+                    <div style="margin: 15px 0;">${itemsList}</div>
+                    <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">
+                        Subtotal: $${order.subtotal?.toFixed(2) || '0.00'} | 
+                        Delivery: $${order.deliveryDetails?.fee?.toFixed(2) || '0.00'} | 
+                        Total: $${order.total?.toFixed(2) || '0.00'}
+                    </div>
+                    <div class="order-actions">
+                        ${order.status === 'pending-payment' ? 
+                            `<button class="btn btn-success" onclick="updateOrderStatus('${docId}', 'pending')" style="background: #28a745;">✅ Payment Received</button>` : 
+                            `<button class="btn btn-primary" onclick="updateOrderStatus('${docId}', 'pending')">📋 Pending</button>`
+                        }
+                        <button class="btn btn-secondary" onclick="updateOrderStatus('${docId}', 'preparing')">👨‍🍳 Preparing</button>
+                        <button class="btn btn-success" onclick="updateOrderStatus('${docId}', 'completed')">✅ Completed</button>
+                        <button class="btn btn-danger" onclick="updateOrderStatus('${docId}', 'cancelled')">❌ Cancel</button>
+                        <button class="btn btn-danger" onclick="deleteOrder('${docId}', 'admin')" style="background: #8b0000;">🗑️ Delete Order</button>
+                    </div>
+                `;
+                ordersDiv.appendChild(orderDiv);
+            });
+        } catch (err) {
+            console.error("❌ Error loading admin orders:", err);
+            showStatus(`Failed to load orders: ${err.message}`, 'error');
+            document.getElementById('admin-orders-list').innerHTML = `<div class="empty-state"><p>Error loading orders. Check console for details.</p></div>`;
+        }
     }
 
-    function cancelEditDeal(dealId) {
-      document.getElementById(`edit-deal-form-${dealId}`).style.display = 'none';
-    }
-
-    async function saveDeal(dealId) {
-      const name = document.getElementById(`edit-deal-name-${dealId}`).value.trim();
-      const description = document.getElementById(`edit-deal-description-${dealId}`).value.trim();
-
-      if (!name) {
-        showStatus("Please enter a deal name.", 'warning');
-        return;
-      }
-
-      const saveBtn = event.target;
-      const originalText = saveBtn.textContent;
-      saveBtn.innerHTML = '<span class="loading"></span> Saving...';
-      saveBtn.disabled = true;
-
-      try {
-        const updateData = {
-          name,
-          description: description || null,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        // Add type-specific updates
-        const percentageEl = document.getElementById(`edit-deal-percentage-${dealId}`);
-        const buyEl = document.getElementById(`edit-deal-buy-${dealId}`);
-        const freeEl = document.getElementById(`edit-deal-free-${dealId}`);
-        const fixedEl = document.getElementById(`edit-deal-fixed-${doc.id}`);
-
-        if (percentageEl) {
-          const percentage = parseInt(percentageEl.value);
-          if (percentage > 0 && percentage < 100) {
-            updateData.percentage = percentage;
-          }
-        }
-        
-        if (buyEl && freeEl) {
-          const buyQuantity = parseInt(buyEl.value);
-          const freeQuantity = parseInt(freeEl.value);
-          if (buyQuantity > 0 && freeQuantity > 0) {
-            updateData.buyQuantity = buyQuantity;
-            updateData.freeQuantity = freeQuantity;
-          }
-        }
-        
-        if (fixedEl) {
-          const fixedAmount = parseFloat(fixedEl.value);
-          if (fixedAmount > 0) {
-            updateData.fixedAmount = fixedAmount;
-          }
-        }
-
-        await firebase.firestore().collection('deals').doc(dealId).update(updateData);
-        
-        showStatus("✅ Deal updated successfully!", 'success');
-        cancelEditDeal(dealId);
+    function toggleAdminView(view) {
+      if (view === 'menu') {
+        document.getElementById('admin-menu-section').style.display = 'block';
+        document.getElementById('admin-orders-section').style.display = 'none';
+        document.getElementById('admin-deals-section').style.display = 'none';
+        loadAdminMenuItems();
+      } else if (view === 'orders') {
+        document.getElementById('admin-menu-section').style.display = 'none';
+        document.getElementById('admin-orders-section').style.display = 'block';
+        document.getElementById('admin-deals-section').style.display = 'none';
+        loadAdminOrders('all');
+      } else if (view === 'deals') {
+        document.getElementById('admin-menu-section').style.display = 'none';
+        document.getElementById('admin-orders-section').style.display = 'none';
+        document.getElementById('admin-deals-section').style.display = 'block';
         loadDeals();
-        
-        // Refresh menu to show updated deals
-        if (currentUser) {
-          loadMenuItems();
-        }
-        
-      } catch (err) {
-        console.error("Failed to update deal:", err);
-        showStatus("❌ Failed to update deal.", 'error');
-        
-        saveBtn.textContent = originalText;
-        saveBtn.disabled = false;
+        loadMenuItemsForDeals();
       }
     }
 
-    async function toggleDealStatus(dealId, isActive) {
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        await firebase.firestore().collection('deals').doc(dealId).update({
-          isActive,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus(`✅ Deal ${isActive ? 'activated' : 'deactivated'}!`, 'success');
-        loadDeals();
-        
-        // Refresh menu to show/hide deals
-        if (currentUser) {
-          loadMenuItems();
-        }
-        
-      } catch (err) {
-        console.error("Failed to update deal status:", err);
-        showStatus("❌ Failed to update deal status.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function deleteDeal(dealId, dealName) {
-      if (!confirm(`Are you sure you want to delete the deal "${dealName}"? This action cannot be undone.`)) {
-        return;
-      }
-
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        await firebase.firestore().collection('deals').doc(dealId).delete();
-        showStatus(`✅ Deal "${dealName}" deleted successfully.`, 'success');
-        loadDeals();
-        
-        // Refresh menu to remove deals
-        if (currentUser) {
-          loadMenuItems();
-        }
-        
-      } catch (err) {
-        console.error("Failed to delete deal:", err);
-        showStatus("❌ Failed to delete deal.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    // Get active deals for a specific menu item
-    async function getActiveDealsForItem(itemId) {
-      try {
-        const snapshot = await firebase.firestore().collection('deals')
-          .where('menuItemId', '==', itemId)
-          .where('isActive', '==', true)
-          .get();
-        
-        const deals = [];
-        snapshot.forEach(doc => {
-          deals.push({ id: doc.id, ...doc.data() });
-        });
-        
-        return deals;
-      } catch (err) {
-        console.error("Error getting deals for item:", err);
-        return [];
-      }
-    }
-
-    // Apply deal to cart item
-    function applyDealToItem(item, deal) {
-      if (!deal) return item;
+    function switchTab(tabName) {
+      if (tabName !== 'cart' && !requireLocationVerification()) return;
       
-      let discountedItem = { ...item };
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
       
-      if (deal.type === 'percentage') {
-        const discount = (item.price * deal.percentage) / 100;
-        discountedItem.originalPrice = item.price;
-        discountedItem.price = item.price - discount;
-        discountedItem.discount = discount;
-        discountedItem.dealInfo = `${deal.percentage}% off`;
-      } else if (deal.type === 'fixed-discount') {
-        const discount = Math.min(deal.fixedAmount, item.price);
-        discountedItem.originalPrice = item.price;
-        discountedItem.price = item.price - discount;
-        discountedItem.discount = discount;
-        discountedItem.dealInfo = `$${discount.toFixed(2)} off`;
-      }
-      // Note: Buy X Get Y deals are handled at checkout level, not per item
+      document.getElementById(tabName + '-tab').classList.add('active');
+      document.getElementById(tabName + '-panel').classList.add('active');
       
-      discountedItem.dealId = deal.id;
-      discountedItem.dealName = deal.name;
-      return discountedItem;
-    }
-
-    // EMPLOYEE MANAGEMENT FUNCTIONS
-    function showAddEmployeeForm() {
-      document.getElementById('add-employee-form').style.display = 'block';
-    }
-
-    function hideAddEmployeeForm() {
-      document.getElementById('add-employee-form').style.display = 'none';
-      document.getElementById('employee-name').value = '';
-      document.getElementById('employee-role').value = '';
-      document.getElementById('employee-email').value = '';
-      document.getElementById('employee-phone').value = '';
-      document.getElementById('employee-hourly-rate').value = '';
-    }
-
-    async function submitNewEmployee() {
-      const name = document.getElementById('employee-name')?.value?.trim() || '';
-      const role = document.getElementById('employee-role')?.value?.trim() || '';
-      const email = document.getElementById('employee-email')?.value?.trim() || '';
-      const phone = document.getElementById('employee-phone')?.value?.trim() || '';
-      const hourlyRate = parseFloat(document.getElementById('employee-hourly-rate')?.value || 0);
-
-      if (!name || !role) {
-        showStatus("Please enter at least employee name and role.", 'warning');
-        return;
-      }
-
-      const submitBtn = event.target;
-      const stopLoading = showLoading(submitBtn);
-
-      try {
-        const employeeData = {
-          name,
-          role,
-          email: email || null,
-          phone: phone || null,
-          hourlyRate: hourlyRate > 0 ? hourlyRate : null,
-          isActive: true,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          createdBy: currentUser.uid
-        };
-
-        await firebase.firestore().collection('employees').add(employeeData);
-        
-        showStatus(`✅ ${name} added to employee list successfully!`, 'success');
-        hideAddEmployeeForm();
+      if (tabName === 'cart') {
+        console.log('🛒 Switched to cart tab - refreshing totals');
+        setTimeout(() => {
+          forceUpdateTotals();
+        }, 200);
+      } else if (tabName === 'orders' && currentUser) {
+        loadUserOrders();
+      } else if (tabName === 'admin' && userData?.role === 'admin') {
+        loadAdminMenuItems();
+        loadAdminOrders('all');
+        // Initialize deals view
+        toggleAdminView('menu');
+      } else if (tabName === 'employees' && userData?.role === 'admin') {
         loadEmployees();
-        
-      } catch (err) {
-        console.error("Failed to add employee:", err);
-        
-        if (err.code === 'permission-denied') {
-          showStatus("❌ Permission denied. Please update Firestore security rules for employees collection.", 'error');
-        } else {
-          showStatus(`❌ Failed to add employee: ${err.message}`, 'error');
-        }
-      } finally {
-        stopLoading();
       }
     }
-
-    async function loadEmployees() {
-      if (!userData || userData.role !== 'admin') return;
-      
-      try {
-        const snapshot = await firebase.firestore().collection('employees').orderBy('createdAt', 'desc').get();
-        const employeesDiv = document.getElementById('employees-list');
-        
-        if (snapshot.empty) {
-          employeesDiv.innerHTML = '<div class="empty-state"><p>No employees added yet.</p></div>';
-          return;
-        }
-
-        employeesDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-          const employee = doc.data();
-          const employeeDiv = document.createElement('div');
-          employeeDiv.className = `admin-menu-item ${!employee.isActive ? 'out-of-stock' : ''}`;
-          employeeDiv.innerHTML = `
-            <div class="stock-indicator ${employee.isActive ? 'in-stock' : 'out-of-stock'}">
-              ${employee.isActive ? 'Active' : 'Inactive'}
-            </div>
-            <div class="menu-item-header">
-              <div class="menu-item-emoji">👤</div>
-              <div class="menu-item-info">
-                <h3>${employee.name}</h3>
-                <div class="menu-item-price">${employee.role}</div>
-              </div>
-            </div>
-            <div class="menu-item-description">
-              ${employee.email ? `📧 ${employee.email}<br>` : ''}
-              ${employee.phone ? `📱 ${employee.phone}<br>` : ''}
-              ${employee.hourlyRate ? `💰 $${employee.hourlyRate.toFixed(2)}/hour` : ''}
-            </div>
-            <div class="item-controls">
-              <button class="btn btn-primary" onclick="editEmployee('${doc.id}')">✏️ Edit</button>
-              <button class="btn ${employee.isActive ? 'btn-danger' : 'btn-success'}" onclick="toggleEmployeeStatus('${doc.id}', ${!employee.isActive})">
-                ${employee.isActive ? '❌ Deactivate' : '✅ Activate'}
-              </button>
-              <button class="btn btn-danger" onclick="deleteEmployee('${doc.id}', '${employee.name}')">🗑️ Delete</button>
-            </div>
-            <div id="edit-employee-form-${doc.id}" class="edit-form" style="display: none;">
-              <input id="edit-employee-name-${doc.id}" value="${employee.name}" placeholder="Name">
-              <input id="edit-employee-role-${doc.id}" value="${employee.role}" placeholder="Role">
-              <input id="edit-employee-email-${doc.id}" value="${employee.email || ''}" placeholder="Email">
-              <input id="edit-employee-phone-${doc.id}" value="${employee.phone || ''}" placeholder="Phone">
-              <input id="edit-employee-hourly-rate-${doc.id}" type="number" step="0.01" value="${employee.hourlyRate || ''}" placeholder="Hourly Rate">
-              <div style="margin-top: 10px;">
-                <button class="btn btn-success" onclick="saveEmployee('${doc.id}')">💾 Save</button>
-                <button class="btn btn-secondary" onclick="cancelEditEmployee('${doc.id}')">❌ Cancel</button>
-              </div>
-            </div>
-          `;
-          employeesDiv.appendChild(employeeDiv);
-        });
-      } catch (err) {
-        console.error("Error loading employees:", err);
-        showStatus("Failed to load employees.", 'error');
-      }
-    }
-
-    function editEmployee(employeeId) {
-      document.getElementById(`edit-employee-form-${employeeId}`).style.display = 'block';
-    }
-
-    function cancelEditEmployee(employeeId) {
-      document.getElementById(`edit-employee-form-${employeeId}`).style.display = 'none';
-    }
-
-    async function saveEmployee(employeeId) {
-      const name = document.getElementById(`edit-employee-name-${employeeId}`).value.trim();
-      const role = document.getElementById(`edit-employee-role-${employeeId}`).value.trim();
-      const email = document.getElementById(`edit-employee-email-${employeeId}`).value.trim();
-      const phone = document.getElementById(`edit-employee-phone-${employeeId}`).value.trim();
-      const hourlyRate = parseFloat(document.getElementById(`edit-employee-hourly-rate-${employeeId}`).value);
-
-      if (!name || !role) {
-        showStatus("Please enter at least employee name and role.", 'warning');
-        return;
-      }
-
-      const saveBtn = event.target;
-      const originalText = saveBtn.textContent;
-      saveBtn.innerHTML = '<span class="loading"></span> Saving...';
-      saveBtn.disabled = true;
-
-      try {
-        const updateData = {
-          name,
-          role,
-          email: email || null,
-          phone: phone || null,
-          hourlyRate: hourlyRate > 0 ? hourlyRate : null,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        await firebase.firestore().collection('employees').doc(employeeId).update(updateData);
-        
-        showStatus("✅ Employee updated successfully!", 'success');
-        cancelEditEmployee(employeeId);
-        loadEmployees();
-        
-      } catch (err) {
-        console.error("Failed to update employee:", err);
-        showStatus("❌ Failed to update employee.", 'error');
-        
-        saveBtn.textContent = originalText;
-        saveBtn.disabled = false;
-      }
-    }
-
-    async function toggleEmployeeStatus(employeeId, isActive) {
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        await firebase.firestore().collection('employees').doc(employeeId).update({
-          isActive,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus(`✅ Employee ${isActive ? 'activated' : 'deactivated'}!`, 'success');
-        loadEmployees();
-        
-      } catch (err) {
-        console.error("Failed to update employee status:", err);
-        showStatus("❌ Failed to update employee status.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function deleteEmployee(employeeId, employeeName) {
-      if (!confirm(`Are you sure you want to delete "${employeeName}" from the employee list? This action cannot be undone.`)) {
-        return;
-      }
-
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        await firebase.firestore().collection('employees').doc(employeeId).delete();
-        showStatus(`✅ "${employeeName}" deleted successfully.`, 'success');
-        loadEmployees();
-        
-      } catch (err) {
-        console.error("Failed to delete employee:", err);
-        showStatus("❌ Failed to delete employee.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-    function testVenmoPayment() {
-      console.log('🧪 Testing Venmo payment link...');
-      
-      if (cart.length === 0) {
-        console.log('⚠️ Cannot test Venmo payment - cart is empty');
-        showStatus('Add items to cart to test Venmo payment', 'warning');
-        return;
-      }
-      
-      updateVenmoLink();
-      
-      const venmoLink = document.getElementById('venmo-payment-link');
-      if (venmoLink) {
-        console.log('✅ Venmo test complete. Link URL:', venmoLink.href);
-        showStatus('Venmo payment link updated successfully!', 'success');
-      } else {
-        console.log('❌ Venmo link element not found');
-        showStatus('Error: Venmo payment link not found', 'error');
-      }
-    }
-    function resetCheckoutUI() {
-      console.log('Checkout UI reset (Venmo mode)');
-    }
-
+    
+    // Payment and Cart UI Functions
     function updateDeliveryOption() {
       console.log('📍 updateDeliveryOption called - AUTO REFRESHING');
       const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
@@ -1850,7 +1430,6 @@
       return fee;
     }
 
-    // FIXED: Updated updateVenmoTotal function to use actual cart prices with deals
     function updateVenmoTotal() {
       console.log('💰 updateVenmoTotal called');
       
@@ -1893,7 +1472,6 @@
       }
     }
 
-    // REVISED: generateOrderSummary now groups items for a cleaner note
     function generateOrderSummary(orderNumber = null) {
         const itemGroups = {};
         cart.forEach(item => {
@@ -1920,8 +1498,6 @@
         return `Covenant Hills Bakery | ${orderItems} | Delivery Type: ${deliveryText} | Order #: ${orderNum} | Total: $${total.toFixed(2)}`;
     }
 
-
-    // REVISED: renderCart now separates paid and free items
     function renderCart() {
         const cartDiv = document.getElementById('cart');
         if (cart.length === 0) {
@@ -2003,7 +1579,6 @@
         forceUpdateTotals();
     }
 
-    // REVISED: This function now manages adding/removing free items automatically
     function updateFreeItemsInCart() {
         const buyGetDealsInCart = cart.reduce((acc, item) => {
             if (item.dealType === 'buy-get' && !acc.some(d => d.dealId === item.dealId)) {
@@ -2043,6 +1618,81 @@
                 }
             }
         });
+    }
+
+    function resetCheckoutUI() {
+      console.log('Checkout UI reset (Venmo mode)');
+    }
+
+    function updateCartCount() {
+      // Show total number of individual items, not grouped items
+      const totalItems = cart.length;
+      const cartCountEl = document.getElementById('cart-count');
+      
+      if (cartCountEl) {
+        cartCountEl.textContent = totalItems;
+        
+        // Add a subtle animation when count changes
+        cartCountEl.style.transform = 'scale(1.2)';
+        cartCountEl.style.transition = 'transform 0.2s ease';
+        setTimeout(() => {
+          cartCountEl.style.transform = 'scale(1)';
+        }, 200);
+      }
+      
+      // Also log for debugging
+      console.log('📊 Cart count updated:', totalItems);
+    }
+
+    function forceRefreshCart() {
+      console.log('🔄 === FORCE REFRESH CART ===');
+      
+      // Clear ALL cached data
+      window.processedCartForCalculations = null;
+      window.finalCartTotal = undefined;
+      window.itemGroupsMap = null;
+      
+      console.log('🧹 Cleared all cached cart data');
+      
+      // Force complete re-render
+      renderCart();
+      
+      showStatus('Cart completely refreshed! Check if items are now stacked.', 'success');
+    }
+
+    function testVenmoPayment() {
+      console.log('🧪 Testing Venmo payment link...');
+      
+      if (cart.length === 0) {
+        console.log('⚠️ Cannot test Venmo payment - cart is empty');
+        showStatus('Add items to cart to test Venmo payment', 'warning');
+        return;
+      }
+      
+      // Force update the processed cart
+      if (window.processedCartForCalculations) {
+        console.log('🔄 Using processed cart with deals for test');
+      }
+      
+      updateVenmoLink();
+      
+      const venmoLink = document.getElementById('venmo-payment-link');
+      if (venmoLink) {
+        console.log('✅ Venmo test complete. Link URL:', venmoLink.href);
+        showStatus('Venmo payment link updated successfully! Check console for details.', 'success');
+        
+        // Show test results in console
+        const cartToUse = window.processedCartForCalculations || cart;
+        const subtotal = cartToUse.reduce((sum, item) => sum + parseFloat(item.price), 0);
+        console.log('💰 Test Results:');
+        console.log('   Cart items:', cartToUse.length);
+        console.log('   Subtotal with deals:', subtotal.toFixed(2));
+        console.log('   Delivery fee:', getDeliveryFee().toFixed(2));
+        console.log('   Final total:', (subtotal + getDeliveryFee()).toFixed(2));
+      } else {
+        console.log('❌ Venmo link element not found');
+        showStatus('Error: Venmo payment link not found', 'error');
+      }
     }
 
     // Location verification functions
@@ -2203,117 +1853,7 @@
       }
       return true;
     }
-
-    // Helper functions
-    // REVISED: showStatus function now stacks notifications
-    function showStatus(message, type = 'success') {
-        const statusDiv = document.getElementById('status-messages');
-        const messageKey = `${type}-${message.replace(/\s+/g, '-')}`;
-        let existingMessageDiv = document.querySelector(`.status-message[data-key="${messageKey}"]`);
-
-        if (existingMessageDiv) {
-            let count = parseInt(existingMessageDiv.getAttribute('data-count') || '1') + 1;
-            existingMessageDiv.setAttribute('data-count', count);
-            existingMessageDiv.textContent = `${message} (x${count})`;
-
-            if (notificationTimers[messageKey]) {
-                clearTimeout(notificationTimers[messageKey]);
-            }
-
-            notificationTimers[messageKey] = setTimeout(() => {
-                existingMessageDiv.remove();
-                delete notificationTimers[messageKey];
-            }, 5000);
-        } else {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `status-message status-${type}`;
-            messageDiv.textContent = message;
-            messageDiv.setAttribute('data-key', messageKey);
-            messageDiv.setAttribute('data-count', '1');
-            statusDiv.appendChild(messageDiv);
-
-            notificationTimers[messageKey] = setTimeout(() => {
-                messageDiv.remove();
-                delete notificationTimers[messageKey];
-            }, 5000);
-        }
-    }
-
-    function showLoading(buttonElement) {
-      const originalText = buttonElement.textContent;
-      buttonElement.innerHTML = '<span class="loading"></span> Loading...';
-      buttonElement.disabled = true;
-      return () => {
-        buttonElement.textContent = originalText;
-        buttonElement.disabled = false;
-      };
-    }
-
-    function updateCartCount() {
-      // Show total number of individual items, not grouped items
-      const totalItems = cart.length;
-      const cartCountEl = document.getElementById('cart-count');
-      
-      if (cartCountEl) {
-        cartCountEl.textContent = totalItems;
-        
-        // Add a subtle animation when count changes
-        cartCountEl.style.transform = 'scale(1.2)';
-        cartCountEl.style.transition = 'transform 0.2s ease';
-        setTimeout(() => {
-          cartCountEl.style.transform = 'scale(1)';
-        }, 200);
-      }
-      
-      // Also log for debugging
-      console.log('📊 Cart count updated:', totalItems);
-    }
-
-    function getStatusColor(status) {
-      switch (status) {
-        case 'pending-payment': return '#ff9800';
-        case 'pending': return '#ffc107';
-        case 'preparing': return '#17a2b8';
-        case 'completed': return '#28a745';
-        case 'cancelled': return '#dc3545';
-        default: return '#6c757d';
-      }
-    }
-
-    function showItemUpdateSuccess(itemId) {
-      const itemDiv = document.querySelector(`#edit-form-${itemId}`).closest('.admin-menu-item');
-      itemDiv.classList.add('admin-action-success');
-      setTimeout(() => {
-        itemDiv.classList.remove('admin-action-success');
-      }, 2000);
-    }
-
-    function switchTab(tabName) {
-      if (tabName !== 'cart' && !requireLocationVerification()) return;
-      
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
-      
-      document.getElementById(tabName + '-tab').classList.add('active');
-      document.getElementById(tabName + '-panel').classList.add('active');
-      
-      if (tabName === 'cart') {
-        console.log('🛒 Switched to cart tab - refreshing totals');
-        setTimeout(() => {
-          forceUpdateTotals();
-        }, 200);
-      } else if (tabName === 'orders' && currentUser) {
-        loadUserOrders();
-      } else if (tabName === 'admin' && userData?.role === 'admin') {
-        loadAdminMenuItems();
-        loadAdminOrders('all');
-        // Initialize deals view
-        toggleAdminView('menu');
-      } else if (tabName === 'employees' && userData?.role === 'admin') {
-        loadEmployees();
-      }
-    }
-
+    
     // Auth functions
     async function signInWithGoogle() {
       if (!requireLocationVerification()) return;
@@ -2538,104 +2078,7 @@
         stopLoading();
       }
     }
-
-    // REVISED: loadAdminOrders now sorts client-side to avoid index errors
-    async function loadAdminOrders(filter = 'all') {
-        if (!userData || userData.role !== 'admin') return;
-        
-        console.log('📋 Loading admin orders with filter:', filter);
-        
-        try {
-            let query = firebase.firestore().collection('orders');
-            
-            if (filter !== 'all') {
-                query = query.where('status', '==', filter);
-            }
-
-            // Only order by 'createdAt' in the query for 'all' to use the default index.
-            // For other filters, we sort client-side.
-            if (filter === 'all') {
-                query = query.orderBy('createdAt', 'desc');
-            }
-            
-            const snapshot = await query.get();
-            const ordersDiv = document.getElementById('admin-orders-list');
-            
-            if (snapshot.empty) {
-                ordersDiv.innerHTML = `<div class="empty-state"><p>No ${filter} orders found.</p></div>`;
-                return;
-            }
-
-            let orders = [];
-            snapshot.forEach(doc => {
-                orders.push({ id: doc.id, ...doc.data() });
-            });
-
-            // If not sorted by query, sort now
-            if (filter !== 'all') {
-                orders.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
-            }
-
-            ordersDiv.innerHTML = '';
-            orders.forEach(order => {
-                const docId = order.id;
-                const orderDiv = document.createElement('div');
-                orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
-                
-                const itemsList = order.items?.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>') || 'No items';
-                const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
-                const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
-                
-                const paymentInfo = order.paymentMethod === 'venmo' 
-                    ? `<small style="color: #3D95CE;">💳 Venmo Payment</small>` 
-                    : `<small style="color: #666;">Payment: ${order.paymentMethod || 'N/A'}</small>`;
-                
-                const statusColor = getStatusColor(order.status || 'pending');
-                const statusText = (order.status || 'pending').replace('-', ' ').toUpperCase();
-                
-                const deliveryInfo = order.deliveryDetails ? 
-                    `<small style="color: #666;">📍 ${order.deliveryDetails.type === 'delivery' ? 'Delivery to: ' + order.deliveryDetails.address : 'Pickup at: ' + order.deliveryDetails.location}</small><br>` : '';
-                
-                orderDiv.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;">
-                        <div>
-                            <strong>Order #${order.orderId || docId.slice(-6)}</strong><br>
-                            <small style="color: #666;">${orderDate} ${orderTime}</small><br>
-                            <small style="color: #666;">Customer: ${order.userEmail}</small><br>
-                            ${deliveryInfo}
-                            ${paymentInfo}
-                        </div>
-                        <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${statusColor}; color: white;">
-                            ${statusText}
-                        </div>
-                    </div>
-                    <div style="margin: 15px 0;">${itemsList}</div>
-                    <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">
-                        Subtotal: $${order.subtotal?.toFixed(2) || '0.00'} | 
-                        Delivery: $${order.deliveryDetails?.fee?.toFixed(2) || '0.00'} | 
-                        Total: $${order.total?.toFixed(2) || '0.00'}
-                    </div>
-                    <div class="order-actions">
-                        ${order.status === 'pending-payment' ? 
-                            `<button class="btn btn-success" onclick="updateOrderStatus('${docId}', 'pending')" style="background: #28a745;">✅ Payment Received</button>` : 
-                            `<button class="btn btn-primary" onclick="updateOrderStatus('${docId}', 'pending')">📋 Pending</button>`
-                        }
-                        <button class="btn btn-secondary" onclick="updateOrderStatus('${docId}', 'preparing')">👨‍🍳 Preparing</button>
-                        <button class="btn btn-success" onclick="updateOrderStatus('${docId}', 'completed')">✅ Completed</button>
-                        <button class="btn btn-danger" onclick="updateOrderStatus('${docId}', 'cancelled')">❌ Cancel</button>
-                        <button class="btn btn-danger" onclick="deleteOrder('${docId}', 'admin')" style="background: #8b0000;">🗑️ Delete Order</button>
-                    </div>
-                `;
-                ordersDiv.appendChild(orderDiv);
-            });
-        } catch (err) {
-            console.error("❌ Error loading admin orders:", err);
-            showStatus(`Failed to load orders: ${err.message}`, 'error');
-            document.getElementById('admin-orders-list').innerHTML = `<div class="empty-state"><p>Error loading orders. Check console for details.</p></div>`;
-        }
-    }
-
-
+    
     async function updateOrderStatus(orderId, newStatus) {
       const btn = event.target;
       const stopLoading = showLoading(btn);
