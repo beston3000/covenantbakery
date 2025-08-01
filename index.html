@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Covenant Hills Bakery - v2.4</title>
+  <title>Covenant Hills Bakery - v2.5</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -1039,6 +1039,7 @@
     let cart = [];
     let locationVerified = false;
     let locationCheckInProgress = false;
+    const notificationTimers = {}; // For stacking notifications
 
     // Firebase config
     const firebaseConfig = {
@@ -2227,13 +2228,38 @@
     }
 
     // Helper functions
+    // REVISED: showStatus function now stacks notifications
     function showStatus(message, type = 'success') {
-      const statusDiv = document.getElementById('status-messages');
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `status-message status-${type}`;
-      messageDiv.textContent = message;
-      statusDiv.appendChild(messageDiv);
-      setTimeout(() => messageDiv.remove(), 5000);
+        const statusDiv = document.getElementById('status-messages');
+        const messageKey = `${type}-${message.replace(/\s+/g, '-')}`;
+        let existingMessageDiv = document.querySelector(`.status-message[data-key="${messageKey}"]`);
+
+        if (existingMessageDiv) {
+            let count = parseInt(existingMessageDiv.getAttribute('data-count') || '1') + 1;
+            existingMessageDiv.setAttribute('data-count', count);
+            existingMessageDiv.textContent = `${message} (x${count})`;
+
+            if (notificationTimers[messageKey]) {
+                clearTimeout(notificationTimers[messageKey]);
+            }
+
+            notificationTimers[messageKey] = setTimeout(() => {
+                existingMessageDiv.remove();
+                delete notificationTimers[messageKey];
+            }, 5000);
+        } else {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `status-message status-${type}`;
+            messageDiv.textContent = message;
+            messageDiv.setAttribute('data-key', messageKey);
+            messageDiv.setAttribute('data-count', '1');
+            statusDiv.appendChild(messageDiv);
+
+            notificationTimers[messageKey] = setTimeout(() => {
+                messageDiv.remove();
+                delete notificationTimers[messageKey];
+            }, 5000);
+        }
     }
 
     function showLoading(buttonElement) {
@@ -2443,7 +2469,7 @@
         renderCart();
         updateCartCount();
         
-        let message = `${name} added to cart!`;
+        let message = `${name} added to cart`;
         if (finalItem.dealInfo && finalItem.dealType !== 'buy-get') {
           message += ` 🏷️ ${finalItem.dealInfo} applied!`;
         } else if (finalItem.dealType === 'buy-get') {
