@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Covenant Hills Bakery - v2.6</title>
+  <title>Covenant Hills Bakery - v2.7</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -1862,53 +1862,33 @@
       }
     }
 
-    // FIXED: Updated updateVenmoLink function with proper order number
-    function updateVenmoLink(orderNumber = null) {
-      console.log('🔗 updateVenmoLink called');
-      const venmoLink = document.getElementById('venmo-payment-link');
-      if (venmoLink && cart.length > 0) {
+    // REVISED: generateOrderSummary now groups items for a cleaner note
+    function generateOrderSummary(orderNumber = null) {
+        const itemGroups = {};
+        cart.forEach(item => {
+            const groupKey = item.id + (item.isFree ? '-free' : '');
+            if (!itemGroups[groupKey]) {
+                itemGroups[groupKey] = { ...item, quantity: 0 };
+            }
+            itemGroups[groupKey].quantity++;
+        });
+
+        const orderItems = Object.values(itemGroups).map(group => {
+            const priceText = group.isFree ? "(FREE)" : `($${parseFloat(group.price).toFixed(2)} each)`;
+            const quantityText = group.quantity > 1 ? ` (x${group.quantity})` : '';
+            return `${group.emoji} ${group.name}${quantityText}`;
+        }).join(', ');
+
         const subtotal = cart.reduce((sum, item) => sum + (item.isFree ? 0 : parseFloat(item.price)), 0);
         const deliveryFee = getDeliveryFee();
         const total = subtotal + deliveryFee;
+        const deliveryType = document.querySelector('input[name="delivery-option"]:checked')?.value || 'pickup';
+        const deliveryText = deliveryType === 'delivery' ? 'Delivery' : 'Pick-up';
+        const orderNum = orderNumber || ('ORDER-' + Date.now().toString().slice(-6));
         
-        // Generate order summary for Venmo note with order number
-        const orderSummary = generateOrderSummary(orderNumber);
-        const encodedNote = encodeURIComponent(orderSummary);
-        
-        // Use proper Venmo Payment API format
-        if (VENMO_USERNAME === 'YOUR_VENMO_USERNAME') {
-          console.log('⚠️ Warning: Please update VENMO_USERNAME in the configuration section!');
-        }
-        
-        venmoLink.href = `https://venmo.com/u/${VENMO_USERNAME}?txn=pay&amount=${total.toFixed(2)}&note=${encodedNote}`;
-        
-        console.log('✅ Updated Venmo payment link:');
-        console.log('   Username:', VENMO_USERNAME);
-        console.log('   Amount:', total.toFixed(2));
-        console.log('   Note:', orderSummary);
-        console.log('   Full URL:', venmoLink.href);
-      } else if (!venmoLink) {
-        console.log('❌ Venmo payment link element not found');
-      } else {
-        console.log('⚠️ Cart is empty, not updating Venmo link');
-      }
+        return `Covenant Hills Bakery | ${orderItems} | Delivery Type: ${deliveryText} | Order #: ${orderNum} | Total: $${total.toFixed(2)}`;
     }
 
-    // FIXED: Updated generateOrderSummary function with delivery type and order number
-    function generateOrderSummary(orderNumber = null) {
-      const orderItems = cart.map(item => `${item.emoji} ${item.name} ($${parseFloat(item.price).toFixed(2)})`).join(', ');
-      const subtotal = cart.reduce((sum, item) => sum + (item.isFree ? 0 : parseFloat(item.price)), 0);
-      const deliveryFee = getDeliveryFee();
-      const total = subtotal + deliveryFee;
-      
-      const deliveryType = document.querySelector('input[name="delivery-option"]:checked')?.value || 'pickup';
-      const deliveryText = deliveryType === 'delivery' ? 'Delivery' : 'Pick-up';
-      
-      // Generate order number if not provided
-      const orderNum = orderNumber || ('ORDER-' + Date.now().toString().slice(-6));
-      
-      return `Covenant Hills Bakery | ${orderItems} | Delivery Type: ${deliveryText} | Order Number: ${orderNum} | Total: $${total.toFixed(2)}`;
-    }
 
     // REVISED: renderCart now separates paid and free items
     function renderCart() {
@@ -2528,329 +2508,102 @@
       }
     }
 
-    // Admin functions
-    function toggleAdminView(view) {
-      if (view === 'menu') {
-        document.getElementById('admin-menu-section').style.display = 'block';
-        document.getElementById('admin-orders-section').style.display = 'none';
-        document.getElementById('admin-deals-section').style.display = 'none';
-        loadAdminMenuItems();
-      } else if (view === 'orders') {
-        document.getElementById('admin-menu-section').style.display = 'none';
-        document.getElementById('admin-orders-section').style.display = 'block';
-        document.getElementById('admin-deals-section').style.display = 'none';
-        loadAdminOrders('all');
-      } else if (view === 'deals') {
-        document.getElementById('admin-menu-section').style.display = 'none';
-        document.getElementById('admin-orders-section').style.display = 'none';
-        document.getElementById('admin-deals-section').style.display = 'block';
-        loadDeals();
-        loadMenuItemsForDeals();
-      }
-    }
-
-    function showAddItemForm() {
-      document.getElementById('add-item-form').style.display = 'block';
-    }
-
-    function hideAddItemForm() {
-      document.getElementById('add-item-form').style.display = 'none';
-      document.getElementById('item-name').value = '';
-      document.getElementById('item-description').value = '';
-      document.getElementById('item-price').value = '';
-      document.getElementById('item-emoji').value = '';
-    }
-
-    async function submitNewItem() {
-      const name = document.getElementById('item-name')?.value?.trim() || '';
-      const description = document.getElementById('item-description')?.value?.trim() || '';
-      const price = parseFloat(document.getElementById('item-price')?.value || 0);
-      const emoji = document.getElementById('item-emoji')?.value?.trim() || '';
-
-      if (!name || !description || isNaN(price) || price <= 0 || !emoji) {
-        showStatus("Please fill in all fields with valid information.", 'warning');
-        return;
-      }
-
-      const submitBtn = event.target;
-      const stopLoading = showLoading(submitBtn);
-
-      try {
-        await firebase.firestore().collection('menuItems').add({
-          name, 
-          description, 
-          price, 
-          emoji, 
-          inStock: true,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus(`✅ ${name} added to menu successfully!`, 'success');
-        hideAddItemForm();
-        
-        await Promise.all([
-          loadAdminMenuItems(),
-          loadMenuItems()
-        ]);
-        
-      } catch (err) {
-        console.error("Failed to add item:", err);
-        showStatus("❌ Failed to add menu item. Please try again.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function loadAdminMenuItems() {
-      if (!userData || userData.role !== 'admin') return;
-      
-      try {
-        const snapshot = await firebase.firestore().collection('menuItems').orderBy('createdAt', 'desc').get();
-        const menuDiv = document.getElementById('admin-menu-items');
-        
-        if (snapshot.empty) {
-          menuDiv.innerHTML = '<div class="empty-state"><p>No menu items yet.</p></div>';
-          return;
-        }
-
-        menuDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-          const item = doc.data();
-          const itemDiv = document.createElement('div');
-          itemDiv.className = `admin-menu-item ${!item.inStock ? 'out-of-stock' : ''}`;
-          itemDiv.innerHTML = `
-            <div class="stock-indicator ${item.inStock ? 'in-stock' : 'out-of-stock'}">
-              ${item.inStock ? 'In Stock' : 'Out of Stock'}
-            </div>
-            <div class="menu-item-header">
-              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
-              <div class="menu-item-info">
-                <h3>${item.name}</h3>
-                <div class="menu-item-price">$${item.price.toFixed(2)}</div>
-              </div>
-            </div>
-            <div class="menu-item-description">${item.description}</div>
-            <div class="item-controls">
-              <button class="btn btn-primary" onclick="editMenuItem('${doc.id}')">✏️ Edit</button>
-              <button class="btn ${item.inStock ? 'btn-danger' : 'btn-success'}" onclick="toggleItemStock('${doc.id}', ${!item.inStock})">
-                ${item.inStock ? '❌ Out of Stock' : '✅ In Stock'}
-              </button>
-              <button class="btn btn-danger" onclick="deleteMenuItem('${doc.id}', '${item.name}')">🗑️ Delete</button>
-            </div>
-            <div id="edit-form-${doc.id}" class="edit-form" style="display: none;">
-              <input id="edit-name-${doc.id}" value="${item.name}" placeholder="Name">
-              <input id="edit-description-${doc.id}" value="${item.description}" placeholder="Description">
-              <input id="edit-price-${doc.id}" type="number" step="0.01" value="${item.price}" placeholder="Price">
-              <input id="edit-emoji-${doc.id}" value="${item.emoji || ''}" placeholder="Emoji">
-              <div style="margin-top: 10px;">
-                <button class="btn btn-success" onclick="saveMenuItem('${doc.id}')">💾 Save</button>
-                <button class="btn btn-secondary" onclick="cancelEditMenuItem('${doc.id}')">❌ Cancel</button>
-              </div>
-            </div>
-          `;
-          menuDiv.appendChild(itemDiv);
-        });
-      } catch (err) {
-        console.error("Error loading admin menu items:", err);
-        showStatus("Failed to load menu items.", 'error');
-      }
-    }
-
-    function editMenuItem(itemId) {
-      document.getElementById(`edit-form-${itemId}`).style.display = 'block';
-    }
-
-    function cancelEditMenuItem(itemId) {
-      document.getElementById(`edit-form-${itemId}`).style.display = 'none';
-    }
-
-    async function saveMenuItem(itemId) {
-      const name = document.getElementById(`edit-name-${itemId}`).value.trim();
-      const description = document.getElementById(`edit-description-${itemId}`).value.trim();
-      const price = parseFloat(document.getElementById(`edit-price-${itemId}`).value);
-      const emoji = document.getElementById(`edit-emoji-${itemId}`).value.trim();
-
-      if (!name || !description || isNaN(price) || price <= 0) {
-        showStatus("Please fill in all fields with valid information.", 'warning');
-        return;
-      }
-
-      const saveBtn = event.target;
-      const originalText = saveBtn.textContent;
-      saveBtn.innerHTML = '<span class="loading"></span> Saving...';
-      saveBtn.disabled = true;
-
-      try {
-        await firebase.firestore().collection('menuItems').doc(itemId).update({
-          name, description, price, emoji,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus("✅ Menu item updated successfully!", 'success');
-        showItemUpdateSuccess(itemId);
-        
-        cancelEditMenuItem(itemId);
-        
-        await Promise.all([
-          loadAdminMenuItems(),
-          loadMenuItems()
-        ]);
-        
-      } catch (err) {
-        console.error("Failed to update item:", err);
-        showStatus("❌ Failed to update menu item.", 'error');
-        
-        saveBtn.textContent = originalText;
-        saveBtn.disabled = false;
-      }
-    }
-
-    async function toggleItemStock(itemId, inStock) {
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        await firebase.firestore().collection('menuItems').doc(itemId).update({
-          inStock,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus(`✅ Item ${inStock ? 'restocked' : 'marked out of stock'}!`, 'success');
-        
-        await Promise.all([
-          loadAdminMenuItems(),
-          loadMenuItems()
-        ]);
-        
-      } catch (err) {
-        console.error("Failed to update stock:", err);
-        showStatus("❌ Failed to update stock status.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function deleteMenuItem(itemId, itemName) {
-      if (!confirm(`Are you sure you want to delete "${itemName}"? This action cannot be undone.`)) {
-        return;
-      }
-
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        await firebase.firestore().collection('menuItems').doc(itemId).delete();
-        showStatus(`✅ "${itemName}" deleted successfully.`, 'success');
-        
-        await Promise.all([
-          loadAdminMenuItems(),
-          loadMenuItems()
-        ]);
-        
-      } catch (err) {
-        console.error("Failed to delete item:", err);
-        showStatus("❌ Failed to delete menu item.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    // FIXED: Updated loadAdminOrders function with proper filtering
+    // REVISED: loadAdminOrders now sorts client-side to avoid index errors
     async function loadAdminOrders(filter = 'all') {
-      if (!userData || userData.role !== 'admin') return;
-      
-      console.log('📋 Loading admin orders with filter:', filter);
-      
-      try {
-        let query = firebase.firestore().collection('orders');
+        if (!userData || userData.role !== 'admin') return;
         
-        // Apply filtering based on status
-        if (filter !== 'all') {
-          console.log('🔍 Applying filter for status:', filter);
-          query = query.where('status', '==', filter);
-        }
+        console.log('📋 Loading admin orders with filter:', filter);
         
-        // Always order by creation date
-        query = query.orderBy('createdAt', 'desc');
-        
-        console.log('🔄 Executing query...');
-        const snapshot = await query.get();
-        console.log('📊 Query results:', snapshot.size, 'orders found');
-        
-        const ordersDiv = document.getElementById('admin-orders-list');
-        
-        if (snapshot.empty) {
-          const message = filter === 'all' ? 'No orders found.' : `No ${filter} orders found.`;
-          ordersDiv.innerHTML = `<div class="empty-state"><p>${message}</p></div>`;
-          return;
-        }
+        try {
+            let query = firebase.firestore().collection('orders');
+            
+            if (filter !== 'all') {
+                query = query.where('status', '==', filter);
+            }
 
-        ordersDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-          const order = doc.data();
-          console.log('📋 Processing order:', doc.id, 'Status:', order.status);
-          
-          const orderDiv = document.createElement('div');
-          orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
-          
-          const itemsList = order.items?.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>') || 'No items';
-          const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
-          const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
-          
-          const paymentInfo = order.paymentMethod === 'venmo' 
-            ? `<small style="color: #3D95CE;">💳 Venmo Payment</small>` 
-            : `<small style="color: #666;">Payment: ${order.paymentMethod || 'N/A'}</small>`;
-          
-          const statusColor = order.status === 'pending-payment' ? '#ff9800' : getStatusColor(order.status || 'pending');
-          const statusText = order.status === 'pending-payment' ? 'AWAITING PAYMENT' : (order.status || 'pending').toUpperCase();
-          
-          // Add delivery information
-          const deliveryInfo = order.deliveryDetails ? 
-            `<small style="color: #666;">📍 ${order.deliveryDetails.type === 'delivery' ? 'Delivery to: ' + order.deliveryDetails.address : 'Pickup at: ' + order.deliveryDetails.location}</small><br>` : '';
-          
-          orderDiv.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;">
-              <div>
-                <strong>Order #${order.orderId || doc.id.slice(-6)}</strong><br>
-                <small style="color: #666;">${orderDate} ${orderTime}</small><br>
-                <small style="color: #666;">Customer: ${order.userEmail}</small><br>
-                ${deliveryInfo}
-                ${paymentInfo}
-              </div>
-              <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${statusColor}; color: white;">
-                ${statusText}
-              </div>
-            </div>
-            <div style="margin: 15px 0;">${itemsList}</div>
-            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">
-              Subtotal: $${order.subtotal?.toFixed(2) || '0.00'} | 
-              Delivery: $${order.deliveryDetails?.fee?.toFixed(2) || '0.00'} | 
-              Total: $${order.total?.toFixed(2) || '0.00'}
-            </div>
-            <div class="order-actions">
-              ${order.status === 'pending-payment' ? 
-                `<button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'pending')" style="background: #28a745;">✅ Payment Received</button>` : 
-                `<button class="btn btn-primary" onclick="updateOrderStatus('${doc.id}', 'pending')">📋 Pending</button>`
-              }
-              <button class="btn btn-secondary" onclick="updateOrderStatus('${doc.id}', 'preparing')">👨‍🍳 Preparing</button>
-              <button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'completed')">✅ Completed</button>
-              <button class="btn btn-danger" onclick="updateOrderStatus('${doc.id}', 'cancelled')">❌ Cancel</button>
-              <button class="btn btn-danger" onclick="deleteOrder('${doc.id}', 'admin')" style="background: #8b0000;">🗑️ Delete Order</button>
-            </div>
-          `;
-          ordersDiv.appendChild(orderDiv);
-        });
-        
-        console.log('✅ Admin orders loaded successfully');
-      } catch (err) {
-        console.error("❌ Error loading admin orders:", err);
-        console.error("Error details:", err.code, err.message);
-        showStatus(`Failed to load orders: ${err.message}`, 'error');
-        
-        const ordersDiv = document.getElementById('admin-orders-list');
-        ordersDiv.innerHTML = `<div class="empty-state"><p>Error loading orders. Check console for details.</p></div>`;
-      }
+            // Only order by 'createdAt' in the query for 'all' to use the default index.
+            // For other filters, we sort client-side.
+            if (filter === 'all') {
+                query = query.orderBy('createdAt', 'desc');
+            }
+            
+            const snapshot = await query.get();
+            const ordersDiv = document.getElementById('admin-orders-list');
+            
+            if (snapshot.empty) {
+                ordersDiv.innerHTML = `<div class="empty-state"><p>No ${filter} orders found.</p></div>`;
+                return;
+            }
+
+            let orders = [];
+            snapshot.forEach(doc => {
+                orders.push({ id: doc.id, ...doc.data() });
+            });
+
+            // If not sorted by query, sort now
+            if (filter !== 'all') {
+                orders.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+            }
+
+            ordersDiv.innerHTML = '';
+            orders.forEach(order => {
+                const docId = order.id;
+                const orderDiv = document.createElement('div');
+                orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
+                
+                const itemsList = order.items?.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>') || 'No items';
+                const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
+                const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
+                
+                const paymentInfo = order.paymentMethod === 'venmo' 
+                    ? `<small style="color: #3D95CE;">💳 Venmo Payment</small>` 
+                    : `<small style="color: #666;">Payment: ${order.paymentMethod || 'N/A'}</small>`;
+                
+                const statusColor = getStatusColor(order.status || 'pending');
+                const statusText = (order.status || 'pending').replace('-', ' ').toUpperCase();
+                
+                const deliveryInfo = order.deliveryDetails ? 
+                    `<small style="color: #666;">📍 ${order.deliveryDetails.type === 'delivery' ? 'Delivery to: ' + order.deliveryDetails.address : 'Pickup at: ' + order.deliveryDetails.location}</small><br>` : '';
+                
+                orderDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;">
+                        <div>
+                            <strong>Order #${order.orderId || docId.slice(-6)}</strong><br>
+                            <small style="color: #666;">${orderDate} ${orderTime}</small><br>
+                            <small style="color: #666;">Customer: ${order.userEmail}</small><br>
+                            ${deliveryInfo}
+                            ${paymentInfo}
+                        </div>
+                        <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${statusColor}; color: white;">
+                            ${statusText}
+                        </div>
+                    </div>
+                    <div style="margin: 15px 0;">${itemsList}</div>
+                    <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">
+                        Subtotal: $${order.subtotal?.toFixed(2) || '0.00'} | 
+                        Delivery: $${order.deliveryDetails?.fee?.toFixed(2) || '0.00'} | 
+                        Total: $${order.total?.toFixed(2) || '0.00'}
+                    </div>
+                    <div class="order-actions">
+                        ${order.status === 'pending-payment' ? 
+                            `<button class="btn btn-success" onclick="updateOrderStatus('${docId}', 'pending')" style="background: #28a745;">✅ Payment Received</button>` : 
+                            `<button class="btn btn-primary" onclick="updateOrderStatus('${docId}', 'pending')">📋 Pending</button>`
+                        }
+                        <button class="btn btn-secondary" onclick="updateOrderStatus('${docId}', 'preparing')">👨‍🍳 Preparing</button>
+                        <button class="btn btn-success" onclick="updateOrderStatus('${docId}', 'completed')">✅ Completed</button>
+                        <button class="btn btn-danger" onclick="updateOrderStatus('${docId}', 'cancelled')">❌ Cancel</button>
+                        <button class="btn btn-danger" onclick="deleteOrder('${docId}', 'admin')" style="background: #8b0000;">🗑️ Delete Order</button>
+                    </div>
+                `;
+                ordersDiv.appendChild(orderDiv);
+            });
+        } catch (err) {
+            console.error("❌ Error loading admin orders:", err);
+            showStatus(`Failed to load orders: ${err.message}`, 'error');
+            document.getElementById('admin-orders-list').innerHTML = `<div class="empty-state"><p>Error loading orders. Check console for details.</p></div>`;
+        }
     }
+
 
     async function updateOrderStatus(orderId, newStatus) {
       const btn = event.target;
