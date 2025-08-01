@@ -1783,6 +1783,37 @@
       }, 50);
     }
 
+    function updateVenmoLink(orderNumber = null) {
+      console.log('🔗 updateVenmoLink called');
+      const venmoLink = document.getElementById('venmo-payment-link');
+      if (venmoLink && cart.length > 0) {
+        const subtotal = cart.reduce((sum, item) => sum + (item.isFree ? 0 : parseFloat(item.price)), 0);
+        const deliveryFee = getDeliveryFee();
+        const total = subtotal + deliveryFee;
+        
+        // Generate order summary for Venmo note with order number
+        const orderSummary = generateOrderSummary(orderNumber);
+        const encodedNote = encodeURIComponent(orderSummary);
+        
+        // Use proper Venmo Payment API format
+        if (VENMO_USERNAME === 'YOUR_VENMO_USERNAME') {
+          console.log('⚠️ Warning: Please update VENMO_USERNAME in the configuration section!');
+        }
+        
+        venmoLink.href = `https://venmo.com/u/${VENMO_USERNAME}?txn=pay&amount=${total.toFixed(2)}&note=${encodedNote}`;
+        
+        console.log('✅ Updated Venmo payment link:');
+        console.log('   Username:', VENMO_USERNAME);
+        console.log('   Amount:', total.toFixed(2));
+        console.log('   Note:', orderSummary);
+        console.log('   Full URL:', venmoLink.href);
+      } else if (!venmoLink) {
+        console.log('❌ Venmo payment link element not found');
+      } else {
+        console.log('⚠️ Cart is empty, not updating Venmo link');
+      }
+    }
+
     function forceUpdateTotals() {
       console.log('🔄 === FORCE UPDATE TOTALS ===');
       try {
