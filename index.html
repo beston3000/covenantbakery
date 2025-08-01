@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Covenant Hills Bakery - v2.3</title>
+  <title>Covenant Hills Bakery - v2.2</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -19,652 +19,7 @@
       color: #333;
       position: relative;
       overflow-x: hidden;
-
-    // Admin functions
-    function toggleAdminView(view) {
-      if (view === 'menu') {
-        document.getElementById('admin-menu-section').style.display = 'block';
-        document.getElementById('admin-orders-section').style.display = 'none';
-        document.getElementById('admin-deals-section').style.display = 'none';
-        loadAdminMenuItems();
-      } else if (view === 'orders') {
-        document.getElementById('admin-menu-section').style.display = 'none';
-        document.getElementById('admin-orders-section').style.display = 'block';
-        document.getElementById('admin-deals-section').style.display = 'none';
-        loadAdminOrders('all');
-      } else if (view === 'deals') {
-        document.getElementById('admin-menu-section').style.display = 'none';
-        document.getElementById('admin-orders-section').style.display = 'none';
-        document.getElementById('admin-deals-section').style.display = 'block';
-        loadDeals();
-        loadMenuItemsForDeals();
-      }
     }
-
-    function showAddItemForm() {
-      document.getElementById('add-item-form').style.display = 'block';
-    }
-
-    function hideAddItemForm() {
-      document.getElementById('add-item-form').style.display = 'none';
-      document.getElementById('item-name').value = '';
-      document.getElementById('item-description').value = '';
-      document.getElementById('item-price').value = '';
-      document.getElementById('item-emoji').value = '';
-    }
-
-    async function submitNewItem() {
-      const name = document.getElementById('item-name')?.value?.trim() || '';
-      const description = document.getElementById('item-description')?.value?.trim() || '';
-      const price = parseFloat(document.getElementById('item-price')?.value || 0);
-      const emoji = document.getElementById('item-emoji')?.value?.trim() || '';
-
-      if (!name || !description || isNaN(price) || price <= 0 || !emoji) {
-        showStatus("Please fill in all fields with valid information.", 'warning');
-        return;
-      }
-
-      const submitBtn = event.target;
-      const stopLoading = showLoading(submitBtn);
-
-      try {
-        await firebase.firestore().collection('menuItems').add({
-          name, 
-          description, 
-          price, 
-          emoji, 
-          inStock: true,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus(`✅ ${name} added to menu successfully!`, 'success');
-        hideAddItemForm();
-        
-        await Promise.all([
-          loadAdminMenuItems(),
-          loadMenuItems()
-        ]);
-        
-      } catch (err) {
-        console.error("Failed to add item:", err);
-        showStatus("❌ Failed to add menu item. Please try again.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function loadAdminMenuItems() {
-      if (!userData || userData.role !== 'admin') return;
-      
-      try {
-        const snapshot = await firebase.firestore().collection('menuItems').orderBy('createdAt', 'desc').get();
-        const menuDiv = document.getElementById('admin-menu-items');
-        
-        if (snapshot.empty) {
-          menuDiv.innerHTML = '<div class="empty-state"><p>No menu items yet.</p></div>';
-          return;
-        }
-
-        menuDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-          const item = doc.data();
-          const itemDiv = document.createElement('div');
-          itemDiv.className = `admin-menu-item ${!item.inStock ? 'out-of-stock' : ''}`;
-          itemDiv.innerHTML = `
-            <div class="stock-indicator ${item.inStock ? 'in-stock' : 'out-of-stock'}">
-              ${item.inStock ? 'In Stock' : 'Out of Stock'}
-            </div>
-            <div class="menu-item-header">
-              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
-              <div class="menu-item-info">
-                <h3>${item.name}</h3>
-                <div class="menu-item-price">${item.price.toFixed(2)}</div>
-              </div>
-            </div>
-            <div class="menu-item-description">${item.description}</div>
-            <div class="item-controls">
-              <button class="btn btn-primary" onclick="editMenuItem('${doc.id}')">✏️ Edit</button>
-              <button class="btn ${item.inStock ? 'btn-danger' : 'btn-success'}" onclick="toggleItemStock('${doc.id}', ${!item.inStock})">
-                ${item.inStock ? '❌ Out of Stock' : '✅ In Stock'}
-              </button>
-              <button class="btn btn-danger" onclick="deleteMenuItem('${doc.id}', '${item.name}')">🗑️ Delete</button>
-            </div>
-            <div id="edit-form-${doc.id}" class="edit-form" style="display: none;">
-              <input id="edit-name-${doc.id}" value="${item.name}" placeholder="Name">
-              <input id="edit-description-${doc.id}" value="${item.description}" placeholder="Description">
-              <input id="edit-price-${doc.id}" type="number" step="0.01" value="${item.price}" placeholder="Price">
-              <input id="edit-emoji-${doc.id}" value="${item.emoji || ''}" placeholder="Emoji">
-              <div style="margin-top: 10px;">
-                <button class="btn btn-success" onclick="saveMenuItem('${doc.id}')">💾 Save</button>
-                <button class="btn btn-secondary" onclick="cancelEditMenuItem('${doc.id}')">❌ Cancel</button>
-              </div>
-            </div>
-          `;
-          menuDiv.appendChild(itemDiv);
-        });
-      } catch (err) {
-        console.error("Error loading admin menu items:", err);
-        showStatus("Failed to load menu items.", 'error');
-      }
-    }
-
-    function editMenuItem(itemId) {
-      document.getElementById(`edit-form-${itemId}`).style.display = 'block';
-    }
-
-    function cancelEditMenuItem(itemId) {
-      document.getElementById(`edit-form-${itemId}`).style.display = 'none';
-    }
-
-    async function saveMenuItem(itemId) {
-      const name = document.getElementById(`edit-name-${itemId}`).value.trim();
-      const description = document.getElementById(`edit-description-${itemId}`).value.trim();
-      const price = parseFloat(document.getElementById(`edit-price-${itemId}`).value);
-      const emoji = document.getElementById(`edit-emoji-${itemId}`).value.trim();
-
-      if (!name || !description || isNaN(price) || price <= 0) {
-        showStatus("Please fill in all fields with valid information.", 'warning');
-        return;
-      }
-
-      const saveBtn = event.target;
-      const originalText = saveBtn.textContent;
-      saveBtn.innerHTML = '<span class="loading"></span> Saving...';
-      saveBtn.disabled = true;
-
-      try {
-        await firebase.firestore().collection('menuItems').doc(itemId).update({
-          name, description, price, emoji,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus("✅ Menu item updated successfully!", 'success');
-        showItemUpdateSuccess(itemId);
-        
-        cancelEditMenuItem(itemId);
-        
-        await Promise.all([
-          loadAdminMenuItems(),
-          loadMenuItems()
-        ]);
-        
-      } catch (err) {
-        console.error("Failed to update item:", err);
-        showStatus("❌ Failed to update menu item.", 'error');
-        
-        saveBtn.textContent = originalText;
-        saveBtn.disabled = false;
-      }
-    }
-
-    async function toggleItemStock(itemId, inStock) {
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        await firebase.firestore().collection('menuItems').doc(itemId).update({
-          inStock,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus(`✅ Item ${inStock ? 'restocked' : 'marked out of stock'}!`, 'success');
-        
-        await Promise.all([
-          loadAdminMenuItems(),
-          loadMenuItems()
-        ]);
-        
-      } catch (err) {
-        console.error("Failed to update stock:", err);
-        showStatus("❌ Failed to update stock status.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function deleteMenuItem(itemId, itemName) {
-      if (!confirm(`Are you sure you want to delete "${itemName}"? This action cannot be undone.`)) {
-        return;
-      }
-
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        await firebase.firestore().collection('menuItems').doc(itemId).delete();
-        showStatus(`✅ "${itemName}" deleted successfully.`, 'success');
-        
-        await Promise.all([
-          loadAdminMenuItems(),
-          loadMenuItems()
-        ]);
-        
-      } catch (err) {
-        console.error("Failed to delete item:", err);
-        showStatus("❌ Failed to delete menu item.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    // FIXED: Updated loadAdminOrders function with proper filtering
-    async function loadAdminOrders(filter = 'all') {
-      if (!userData || userData.role !== 'admin') return;
-      
-      console.log('📋 Loading admin orders with filter:', filter);
-      
-      try {
-        let query = firebase.firestore().collection('orders');
-        
-        // Apply filtering based on status
-        if (filter !== 'all') {
-          console.log('🔍 Applying filter for status:', filter);
-          query = query.where('status', '==', filter);
-        }
-        
-        // Always order by creation date
-        query = query.orderBy('createdAt', 'desc');
-        
-        console.log('🔄 Executing query...');
-        const snapshot = await query.get();
-        console.log('📊 Query results:', snapshot.size, 'orders found');
-        
-        const ordersDiv = document.getElementById('admin-orders-list');
-        
-        if (snapshot.empty) {
-          const message = filter === 'all' ? 'No orders found.' : `No ${filter} orders found.`;
-          ordersDiv.innerHTML = `<div class="empty-state"><p>${message}</p></div>`;
-          return;
-        }
-
-        ordersDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-          const order = doc.data();
-          console.log('📋 Processing order:', doc.id, 'Status:', order.status);
-          
-          const orderDiv = document.createElement('div');
-          orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
-          
-          // Use cartSummary if available, otherwise fall back to items
-          const displayItems = order.cartSummary || order.items || [];
-          const itemsList = displayItems.map(item => {
-            const quantity = item.quantity > 1 ? ` x${item.quantity}` : '';
-            const price = item.quantity ? (item.price * item.quantity).toFixed(2) : item.price.toFixed(2);
-            return `${item.emoji} ${item.name}${quantity} - ${price}`;
-          }).join('<br>') || 'No items';
-          
-          const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
-          const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
-          
-          const paymentInfo = order.paymentMethod === 'venmo' 
-            ? `<small style="color: #3D95CE;">💳 Venmo Payment</small>` 
-            : `<small style="color: #666;">Payment: ${order.paymentMethod || 'N/A'}</small>`;
-          
-          const statusColor = order.status === 'pending-payment' ? '#ff9800' : getStatusColor(order.status || 'pending');
-          const statusText = order.status === 'pending-payment' ? 'AWAITING PAYMENT' : (order.status || 'pending').toUpperCase();
-          
-          // Add delivery information
-          const deliveryInfo = order.deliveryDetails ? 
-            `<small style="color: #666;">📍 ${order.deliveryDetails.type === 'delivery' ? 'Delivery to: ' + order.deliveryDetails.address : 'Pickup at: ' + order.deliveryDetails.location}</small><br>` : '';
-          
-          orderDiv.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;">
-              <div>
-                <strong>Order #${order.orderId || doc.id.slice(-6)}</strong><br>
-                <small style="color: #666;">${orderDate} ${orderTime}</small><br>
-                <small style="color: #666;">Customer: ${order.userEmail}</small><br>
-                ${deliveryInfo}
-                ${paymentInfo}
-              </div>
-              <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${statusColor}; color: white;">
-                ${statusText}
-              </div>
-            </div>
-            <div style="margin: 15px 0;">${itemsList}</div>
-            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">
-              Subtotal: ${order.subtotal?.toFixed(2) || '0.00'} | 
-              Delivery: ${order.deliveryDetails?.fee?.toFixed(2) || '0.00'} | 
-              Total: ${order.total?.toFixed(2) || '0.00'}
-            </div>
-            <div class="order-actions">
-              ${order.status === 'pending-payment' ? 
-                `<button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'pending')" style="background: #28a745;">✅ Payment Received</button>` : 
-                `<button class="btn btn-primary" onclick="updateOrderStatus('${doc.id}', 'pending')">📋 Pending</button>`
-              }
-              <button class="btn btn-secondary" onclick="updateOrderStatus('${doc.id}', 'preparing')">👨‍🍳 Preparing</button>
-              <button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'completed')">✅ Completed</button>
-              <button class="btn btn-danger" onclick="updateOrderStatus('${doc.id}', 'cancelled')">❌ Cancel</button>
-              <button class="btn btn-danger" onclick="deleteOrder('${doc.id}', 'admin')" style="background: #8b0000;">🗑️ Delete Order</button>
-            </div>
-          `;
-          ordersDiv.appendChild(orderDiv);
-        });
-        
-        console.log('✅ Admin orders loaded successfully');
-      } catch (err) {
-        console.error("❌ Error loading admin orders:", err);
-        console.error("Error details:", err.code, err.message);
-        showStatus(`Failed to load orders: ${err.message}`, 'error');
-        
-        const ordersDiv = document.getElementById('admin-orders-list');
-        ordersDiv.innerHTML = `<div class="empty-state"><p>Error loading orders. Check console for details.</p></div>`;
-      }
-    }
-
-    async function updateOrderStatus(orderId, newStatus) {
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        await firebase.firestore().collection('orders').doc(orderId).update({
-          status: newStatus,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        showStatus(`✅ Order status updated to ${newStatus}!`, 'success');
-        
-        loadAdminOrders('all');
-        
-      } catch (err) {
-        console.error("Failed to update order status:", err);
-        showStatus("❌ Failed to update order status.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function deleteOrder(orderId, userType) {
-      const confirmMessage = userType === 'admin' 
-        ? `Are you sure you want to permanently delete this order? This action cannot be undone.`
-        : `Are you sure you want to delete this order? This action cannot be undone.`;
-      
-      if (!confirm(confirmMessage)) {
-        return;
-      }
-
-      const btn = event.target;
-      const stopLoading = showLoading(btn);
-
-      try {
-        if (userType === 'user') {
-          const orderDoc = await firebase.firestore().collection('orders').doc(orderId).get();
-          if (!orderDoc.exists) {
-            showStatus("Order not found.", 'error');
-            return;
-          }
-          
-          const orderData = orderDoc.data();
-          if (orderData.userId !== currentUser.uid) {
-            showStatus("You can only delete your own orders.", 'error');
-            return;
-          }
-        }
-
-        await firebase.firestore().collection('orders').doc(orderId).delete();
-        
-        showStatus("✅ Order deleted successfully!", 'success');
-        
-        if (userType === 'admin') {
-          loadAdminOrders('all');
-        } else {
-          loadUserOrders();
-        }
-      } catch (err) {
-        console.error("Failed to delete order:", err);
-        showStatus("❌ Failed to delete order. Please try again.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    // Load menu items with deals
-    async function loadMenuItems() {
-      try {
-        const snapshot = await firebase.firestore().collection('menuItems').where('inStock', '==', true).get();
-        const menuDiv = document.getElementById('menu');
-        
-        if (snapshot.empty) {
-          menuDiv.innerHTML = '<div class="empty-state"><p>No items available right now. Check back soon!</p></div>';
-          return;
-        }
-
-        // Get all active deals
-        const dealsSnapshot = await firebase.firestore().collection('deals').where('isActive', '==', true).get();
-        const dealsByItem = {};
-        
-        dealsSnapshot.forEach(doc => {
-          const deal = doc.data();
-          if (!dealsByItem[deal.menuItemId]) {
-            dealsByItem[deal.menuItemId] = [];
-          }
-          dealsByItem[deal.menuItemId].push({ id: doc.id, ...deal });
-        });
-
-        menuDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-          const item = doc.data();
-          const itemDeals = dealsByItem[doc.id] || [];
-          
-          const itemDiv = document.createElement('div');
-          itemDiv.className = `menu-item ${itemDeals.length > 0 ? 'has-deal' : ''}`;
-          
-          // Generate deal badges and descriptions
-          let dealBadges = '';
-          let dealDescriptions = '';
-          
-          itemDeals.forEach(deal => {
-            let badgeText = '';
-            if (deal.type === 'percentage') {
-              badgeText = `${deal.percentage}% OFF`;
-            } else if (deal.type === 'buy-get') {
-              badgeText = `Buy ${deal.buyQuantity} Get ${deal.freeQuantity} FREE`;
-            } else if (deal.type === 'fixed-discount') {
-              badgeText = `${deal.fixedAmount.toFixed(2)} OFF`;
-            }
-            
-            dealBadges += `<div class="deal-badge">${badgeText}</div>`;
-            
-            if (deal.description) {
-              dealDescriptions += `<div class="deal-description">🏷️ ${deal.description}</div>`;
-            }
-          });
-          
-          itemDiv.innerHTML = `
-            ${dealBadges}
-            <div class="menu-item-header">
-              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
-              <div class="menu-item-info">
-                <h3>${item.name}</h3>
-                <div class="menu-item-price">${item.price.toFixed(2)}</div>
-              </div>
-            </div>
-            <div class="menu-item-description">${item.description}</div>
-            ${dealDescriptions}
-            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '🍰'}')">Add to Cart</button>
-          `;
-          menuDiv.appendChild(itemDiv);
-        });
-      } catch (err) {
-        console.error("Error loading menu items:", err);
-        showStatus("Failed to load menu items.", 'error');
-      }
-    }
-
-    async function loadUserOrders() {
-      if (!currentUser) return;
-      
-      try {
-        const snapshot = await firebase.firestore().collection('orders')
-          .where('userId', '==', currentUser.uid)
-          .orderBy('createdAt', 'desc')
-          .get();
-        
-        const ordersDiv = document.getElementById('orders-list');
-        
-        if (snapshot.empty) {
-          ordersDiv.innerHTML = '<div class="empty-state"><p>You haven\'t placed any orders yet.</p></div>';
-          return;
-        }
-
-        ordersDiv.innerHTML = '';
-        snapshot.forEach(doc => {
-          const order = doc.data();
-          const orderDiv = document.createElement('div');
-          orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
-          
-          // Use cartSummary if available for better display
-          const displayItems = order.cartSummary || order.items || [];
-          const itemsList = displayItems.map(item => {
-            const quantity = item.quantity > 1 ? ` x${item.quantity}` : '';
-            const price = item.quantity ? (item.price * item.quantity).toFixed(2) : item.price.toFixed(2);
-            return `${item.emoji} ${item.name}${quantity} - ${price}`;
-          }).join('<br>');
-          
-          const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
-          
-          orderDiv.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-              <strong>Order #${order.orderId || doc.id.slice(-6)} from ${orderDate}</strong>
-              <div style="padding: 5px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; background: ${getStatusColor(order.status || 'pending')}; color: white;">
-                ${(order.status || 'pending').toUpperCase()}
-              </div>
-            </div>
-            <div style="margin: 10px 0;">${itemsList}</div>
-            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: ${order.total.toFixed(2)}</div>
-            <div style="text-align: right;">
-              <button class="btn btn-danger" onclick="deleteOrder('${doc.id}', 'user')" style="padding: 8px 15px; font-size: 0.9rem;">🗑️ Delete Order</button>
-            </div>
-          `;
-          ordersDiv.appendChild(orderDiv);
-        });
-      } catch (err) {
-        console.error("Error loading orders:", err);
-        showStatus("Failed to load orders.", 'error');
-      }
-    }
-
-    async function handleAuthStateChange(user) {
-      try {
-        if (user) {
-          currentUser = user;
-          
-          const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
-          
-          if (!userDoc.exists) {
-            await firebase.firestore().collection('users').doc(user.uid).set({
-              email: user.email,
-              displayName: user.displayName || '',
-              photoURL: user.photoURL || '',
-              role: 'customer',
-              createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            userData = {
-              email: user.email,
-              displayName: user.displayName || '',
-              photoURL: user.photoURL || '',
-              role: 'customer'
-            };
-          } else {
-            userData = userDoc.data();
-          }
-
-          document.getElementById('signed-out-view').style.display = 'none';
-          document.getElementById('signed-in-view').style.display = 'block';
-          document.getElementById('user-email-display').textContent = userData.email;
-          document.getElementById('user-role-display').textContent = `Role: ${userData.role}`;
-          
-          const avatarDiv = document.getElementById('user-avatar');
-          if (userData.photoURL) {
-            avatarDiv.innerHTML = `<img src="${userData.photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" alt="Profile">`;
-          } else {
-            const initial = (userData.displayName || userData.email).charAt(0).toUpperCase();
-            avatarDiv.textContent = initial;
-            avatarDiv.style.background = '#d4691a';
-            avatarDiv.style.color = 'white';
-          }
-          
-          document.getElementById('orders-tab').style.display = 'block';
-          if (userData.role === 'admin') {
-            document.getElementById('admin-tab').style.display = 'block';
-            document.getElementById('employees-tab').style.display = 'block';
-            
-            // Check Firestore permissions for admin features
-            setTimeout(() => checkFirestorePermissions(), 1000);
-          }
-
-          await loadMenuItems();
-        } else {
-          currentUser = null;
-          userData = null;
-          
-          document.getElementById('signed-out-view').style.display = 'block';
-          document.getElementById('signed-in-view').style.display = 'none';
-          document.getElementById('orders-tab').style.display = 'none';
-          document.getElementById('admin-tab').style.display = 'none';
-          document.getElementById('employees-tab').style.display = 'none';
-          
-          document.getElementById('menu').innerHTML = '<div class="empty-state"><p>Sign in to view our delicious menu items!</p></div>';
-          cart = [];
-          renderCart();
-          switchTab('account');
-        }
-      } catch (error) {
-        console.error("Auth state change error:", error);
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-      try {
-        firebase.initializeApp(firebaseConfig);
-        firebase.auth().onAuthStateChanged(handleAuthStateChange);
-        updateCartCount();
-        
-        // Initialize Venmo payment system
-        initializeVenmoPayment();
-        
-        console.log('🔥 Firebase initialized successfully!');
-        
-        console.log('🧪 Testing function availability:');
-        console.log('resetCheckoutUI:', typeof resetCheckoutUI);
-        console.log('renderCart:', typeof renderCart);
-        console.log('updateCartCount:', typeof updateCartCount);
-        console.log('updateDeliveryOption:', typeof updateDeliveryOption);
-        console.log('forceUpdateTotals:', typeof forceUpdateTotals);
-        console.log('updateVenmoTotal:', typeof updateVenmoTotal);
-        console.log('calculateCartSubtotal:', typeof calculateCartSubtotal);
-        console.log('processCartDeals:', typeof processCartDeals);
-        console.log('changeQuantity:', typeof changeQuantity);
-        console.log('checkLocationAgain:', typeof checkLocationAgain);
-        console.log('requestLocation:', typeof requestLocation);
-        
-        // Make sure key functions are globally accessible
-        window.checkLocationAgain = checkLocationAgain;
-        window.requestLocation = requestLocation;
-        
-        showLocationVerification();
-        
-        // Initialize deal form fields toggle
-        setTimeout(() => {
-          if (document.getElementById('deal-type')) {
-            toggleDealFields();
-          }
-        }, 1000);
-      } catch (error) {
-        console.error('Failed to initialize Firebase:', error);
-        showStatus('Failed to load the application. Please refresh the page.', 'error');
-      }
-    });
-
-    document.addEventListener('keypress', function(e) {
-      if (e.target.id === 'email' || e.target.id === 'password') {
-        if (e.key === 'Enter') {
-          signIn();
-        }
-      }
-    });
-  </script>
-</body>
-</html>
     
     body::before {
       content: '';
@@ -1241,11 +596,6 @@
       background: rgba(40, 167, 69, 0.05);
     }
     
-    .cart-item.free-item {
-      border-left: 4px solid #ff6b6b;
-      background: rgba(255, 107, 107, 0.05);
-    }
-    
     .cart-savings-total {
       background: linear-gradient(135deg, #28a745, #20c997);
       color: white;
@@ -1266,22 +616,12 @@
       display: flex;
       gap: 5px;
       align-items: center;
-      margin: 5px 0;
     }
     
     .quantity-controls .btn {
       padding: 3px 8px;
       font-size: 0.8rem;
       min-width: auto;
-    }
-    
-    .quantity-display {
-      font-weight: bold;
-      margin: 0 10px;
-      padding: 5px 10px;
-      background: rgba(102, 126, 234, 0.1);
-      border-radius: 15px;
-      color: #667eea;
     }
     
     /* Cart Count Animation */
@@ -1696,7 +1036,7 @@
     // Global variables
     let currentUser = null;
     let userData = null;
-    let cart = []; // Changed to handle stacked items with quantities
+    let cart = [];
     let locationVerified = false;
     let locationCheckInProgress = false;
 
@@ -1711,1207 +1051,13 @@
       measurementId: "G-C41TKNP37H"
     };
 
-    // LOCATION FUNCTIONS - DEFINED FIRST FOR HTML ONCLICK HANDLERS
-    function requestLocation() {
-      console.log('📍 requestLocation called');
-      if (locationCheckInProgress) return;
-      
-      locationCheckInProgress = true;
-      const statusDiv = document.getElementById('location-status');
-      const locationBtn = document.getElementById('location-btn');
-      
-      if (statusDiv) {
-        statusDiv.innerHTML = '<span class="loading"></span> Checking your location...';
-        statusDiv.style.color = '#d4691a';
-      }
-      
-      if (locationBtn) {
-        locationBtn.disabled = true;
-      }
-
-      if (!navigator.geolocation) {
-        showLocationError('Geolocation is not supported by your browser.');
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        verifyLocation,
-        handleLocationError,
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000
-        }
-      );
-    }
-
-    function checkLocationAgain() {
-      console.log('🔄 checkLocationAgain called');
-      showLocationVerification();
-      const locationBtn = document.getElementById('location-btn');
-      const statusDiv = document.getElementById('location-status');
-      
-      if (locationBtn) {
-        locationBtn.disabled = false;
-        locationBtn.textContent = '📍 Share My Location';
-      }
-      
-      if (statusDiv) {
-        statusDiv.textContent = '';
-        statusDiv.style.color = '';
-      }
-      
-      locationCheckInProgress = false;
-    }
-
-    // IMMEDIATELY ATTACH TO WINDOW OBJECT
-    window.requestLocation = requestLocation;
-    window.checkLocationAgain = checkLocationAgain;
-    
-    // DEBUG: Log that functions are now available
-    console.log('🔧 Location functions attached to window:', {
-      requestLocation: typeof window.requestLocation,
-      checkLocationAgain: typeof window.checkLocationAgain
-    });
-
-    function verifyLocation(position) {
-      console.log('🔍 verifyLocation called with position:', position);
-      const { latitude, longitude } = position.coords;
-      
-      const allowedAreas = [
-        {
-          name: "Covenant Hills",
-          centerLat: 33.5567,
-          centerLng: -117.6648,
-          radius: 3
-        },
-        {
-          name: "Ladera Ranch", 
-          centerLat: 33.5549,
-          centerLng: -117.6419,
-          radius: 3
-        }
-      ];
-
-      let isInServiceArea = false;
-      let nearestArea = null;
-
-      for (const area of allowedAreas) {
-        const distance = calculateDistance(latitude, longitude, area.centerLat, area.centerLng);
-        if (distance <= area.radius) {
-          isInServiceArea = true;
-          nearestArea = area.name;
-          break;
-        }
-      }
-
-      locationCheckInProgress = false;
-
-      if (isInServiceArea) {
-        locationVerified = true;
-        showLocationSuccess(nearestArea);
-        hideLocationVerification();
-        showMainContent();
-      } else {
-        showLocationDenied();
-      }
-    }
-
-    function handleLocationError(error) {
-      console.log('❌ handleLocationError called:', error);
-      locationCheckInProgress = false;
-      let errorMessage = '';
-      
-      switch(error.code) {
-        case error.PERMISSION_DENIED:
-          errorMessage = 'Location access denied. Please enable location services and refresh the page.';
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMessage = 'Location information unavailable. Please try again.';
-          break;
-        case error.TIMEOUT:
-          errorMessage = 'Location request timed out. Please try again.';
-          break;
-        default:
-          errorMessage = 'An unknown error occurred while retrieving your location.';
-          break;
-      }
-      
-      showLocationError(errorMessage);
-    }
-
-    function showLocationError(message) {
-      const statusDiv = document.getElementById('location-status');
-      const locationBtn = document.getElementById('location-btn');
-      
-      if (statusDiv) {
-        statusDiv.textContent = message;
-        statusDiv.style.color = '#dc3545';
-      }
-      
-      if (locationBtn) {
-        locationBtn.disabled = false;
-        locationBtn.textContent = '📍 Try Again';
-      }
-    }
-
-    function showLocationSuccess(area) {
-      const statusDiv = document.getElementById('location-status');
-      if (statusDiv) {
-        statusDiv.innerHTML = `✅ Location verified! Welcome to our ${area} service area.`;
-        statusDiv.style.color = '#28a745';
-      }
-    }
-
-    function showLocationVerification() {
-      const verification = document.getElementById('location-verification');
-      const denied = document.getElementById('location-denied');
-      const mainContent = document.getElementById('main-content');
-      
-      if (verification) verification.style.display = 'flex';
-      if (denied) denied.style.display = 'none';
-      if (mainContent) mainContent.style.display = 'none';
-    }
-
-    function hideLocationVerification() {
-      const verification = document.getElementById('location-verification');
-      if (verification) verification.style.display = 'none';
-    }
-
-    function showLocationDenied() {
-      const verification = document.getElementById('location-verification');
-      const denied = document.getElementById('location-denied');
-      const mainContent = document.getElementById('main-content');
-      
-      if (verification) verification.style.display = 'none';
-      if (denied) denied.style.display = 'flex';
-      if (mainContent) mainContent.style.display = 'none';
-    }
-
-    function showMainContent() {
-      const mainContent = document.getElementById('main-content');
-      const verification = document.getElementById('location-verification');
-      const denied = document.getElementById('location-denied');
-      
-      if (mainContent) mainContent.style.display = 'block';
-      if (verification) verification.style.display = 'none';  
-      if (denied) denied.style.display = 'none';
-    }
-
-    function calculateDistance(lat1, lng1, lat2, lng2) {
-      const R = 3959;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLng/2) * Math.sin(dLng/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    }
-
     // FIXED: Initialize Venmo payment system
     function initializeVenmoPayment() {
       console.log('💳 Initializing Venmo payment system...');
       
       // Update username display
       const usernameDisplay = document.getElementById('venmo-username-display');
-      if (cart.length === 0) {
-        cartDiv.innerHTML = '<div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>';
-        document.getElementById('checkout-section').style.display = 'none';
-        updateCartCount();
-        return;
-      }
-
-      document.getElementById('checkout-section').style.display = 'block';
-      resetCheckoutUI();
-
-      // Process deals
-      const processedCart = processCartDeals(cart);
-      
-      let cartHTML = '';
-      let totalSavings = 0;
-      
-      processedCart.forEach((item, index) => {
-        const itemPrice = parseFloat(item.price);
-        const originalPrice = item.originalPrice ? parseFloat(item.originalPrice) : itemPrice;
-        const itemTotal = itemPrice * item.quantity;
-        const originalTotal = originalPrice * item.quantity;
-        const itemSavings = originalTotal - itemTotal;
-        
-        totalSavings += itemSavings;
-        
-        let priceDisplay = `${itemPrice.toFixed(2)}`;
-        let totalDisplay = `${itemTotal.toFixed(2)}`;
-        let dealInfo = '';
-        let itemClasses = 'cart-item';
-        
-        if (itemSavings > 0) {
-          priceDisplay = `<span style="text-decoration: line-through; color: #999;">${originalPrice.toFixed(2)}</span> ${itemPrice.toFixed(2)}`;
-          totalDisplay = `<span style="text-decoration: line-through; color: #999;">${originalTotal.toFixed(2)}</span> ${itemTotal.toFixed(2)}`;
-          dealInfo = `<small style="color: #28a745; font-weight: bold;">🏷️ ${item.dealInfo}</small><br>`;
-          itemClasses += ' has-deal';
-        }
-        
-        if (item.freeItemsCount > 0) {
-          dealInfo += `<small style="color: #ff6b6b; font-weight: bold;">🎉 ${item.freeItemsCount} free items included!</small><br>`;
-          itemClasses += ' free-item';
-        }
-        
-        cartHTML += `
-          <div class="${itemClasses}">
-            <div>
-              <span style="font-size: 1.5rem; margin-right: 10px;">${item.emoji}</span>
-              <strong>${item.name}</strong><br>
-              ${dealInfo}
-              <div class="quantity-controls">
-                <button class="btn btn-secondary" onclick="changeQuantity(${index}, -1)">-</button>
-                <span class="quantity-display">${item.quantity}</span>
-                <button class="btn btn-secondary" onclick="changeQuantity(${index}, 1)">+</button>
-              </div>
-              <div style="margin-top: 5px;">
-                <strong>Each:</strong> ${priceDisplay} | <strong>Total:</strong> ${totalDisplay}
-              </div>
-            </div>
-            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" onclick="removeFromCart(${index})">Remove All</button>
-          </div>
-        `;
-      });
-      
-      // Show savings if any
-      if (totalSavings > 0) {
-        cartHTML += `
-          <div class="cart-savings-total">
-            🎉 Total Savings: ${totalSavings.toFixed(2)}
-          </div>
-        `;
-      }
-      
-      const subtotal = calculateCartSubtotal();
-      cartHTML += `<div class="cart-total">Cart Subtotal: ${subtotal.toFixed(2)}</div>`;
-      
-      cartDiv.innerHTML = cartHTML;
-      updateCartCount();
-      
-      // Update checkout totals after rendering
-      setTimeout(() => {
-        console.log('🔄 Auto-updating totals from renderCart');
-        updateVenmoTotal();
-        updateVenmoLink();
-      }, 100);
-    }
-
-    // NEW: Change quantity of items in cart
-    function changeQuantity(index, change) {
-      if (index < 0 || index >= cart.length) return;
-      
-      const newQuantity = cart[index].quantity + change;
-      
-      if (newQuantity <= 0) {
-        removeFromCart(index);
-        return;
-      }
-      
-      cart[index].quantity = newQuantity;
-      console.log(`📊 Changed quantity of ${cart[index].name} to ${newQuantity}`);
-      
-      renderCart();
-      
-      showStatus(`Updated ${cart[index].name} quantity to ${newQuantity}`, 'success');
-    }
-
-    function requireLocationVerification() {
-      if (!locationVerified) {
-        showStatus('Please verify your location first to access this feature.', 'warning');
-        return false;
-      }
-      return true;
-    }
-
-    // TAB SWITCHING - DEFINED EARLY FOR HTML ONCLICK
-    function switchTab(tabName) {
-      console.log('🔄 switchTab called:', tabName);
-      if (tabName !== 'cart' && !requireLocationVerification()) return;
-      
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
-      
-      const tabButton = document.getElementById(tabName + '-tab');
-      const tabPanel = document.getElementById(tabName + '-panel');
-      
-      if (tabButton) tabButton.classList.add('active');
-      if (tabPanel) tabPanel.classList.add('active');
-      
-      if (tabName === 'cart') {
-        console.log('🛒 Switched to cart tab - refreshing totals');
-        setTimeout(() => {
-          forceUpdateTotals();
-        }, 200);
-      } else if (tabName === 'orders' && currentUser) {
-        loadUserOrders();
-      } else if (tabName === 'admin' && userData?.role === 'admin') {
-        loadAdminMenuItems();
-        loadAdminOrders('all');
-        // Initialize deals view
-        toggleAdminView('menu');
-      } else if (tabName === 'employees' && userData?.role === 'admin') {
-        loadEmployees();
-      }
-    }
-
-    // ATTACH TAB FUNCTION TO WINDOW
-    window.switchTab = switchTab;
-
-    // AUTH FUNCTIONS - DEFINED EARLY FOR HTML ONCLICK
-    async function signInWithGoogle() {
-      console.log('🔐 signInWithGoogle called');
-      if (!requireLocationVerification()) return;
-      
-      const googleBtn = event.target;
-      const stopLoading = showLoading(googleBtn);
-
-      try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        provider.addScope('email');
-        provider.addScope('profile');
-        
-        provider.setCustomParameters({
-          prompt: 'select_account'
-        });
-        
-        const result = await firebase.auth().signInWithPopup(provider);
-        showStatus(`Welcome ${result.user.displayName || result.user.email}!`, 'success');
-      } catch (error) {
-        console.error("Google sign in error:", error);
-        if (error.code === 'auth/popup-blocked') {
-          showStatus("Popup was blocked. Please allow popups for this site and try again.", 'error');
-        } else if (error.code === 'auth/popup-closed-by-user') {
-          showStatus("Sign in was cancelled.", 'warning');
-        } else {
-          showStatus("Google sign in failed. Please try again.", 'error');
-        }
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function signUp() {
-      console.log('🔐 signUp called');
-      if (!requireLocationVerification()) return;
-      
-      const email = document.getElementById('email')?.value;
-      const password = document.getElementById('password')?.value;
-      
-      if (!email || !password) {
-        showStatus('Please enter both email and password.', 'warning');
-        return;
-      }
-
-      const signUpBtn = event.target;
-      const stopLoading = showLoading(signUpBtn);
-
-      try {
-        const result = await firebase.auth().createUserWithEmailAndPassword(email, password);
-        await firebase.firestore().collection('users').doc(result.user.uid).set({
-          email,
-          role: 'customer',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        showStatus("Account created successfully!", 'success');
-        const emailEl = document.getElementById('email');
-        const passwordEl = document.getElementById('password');
-        if (emailEl) emailEl.value = '';
-        if (passwordEl) passwordEl.value = '';
-      } catch (error) {
-        showStatus(error.message, 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function signIn() {
-      console.log('🔐 signIn called');
-      if (!requireLocationVerification()) return;
-      
-      const email = document.getElementById('email')?.value;
-      const password = document.getElementById('password')?.value;
-      
-      if (!email || !password) {
-        showStatus('Please enter both email and password.', 'warning');
-        return;
-      }
-
-      const signInBtn = event.target;
-      const stopLoading = showLoading(signInBtn);
-
-      try {
-        await firebase.auth().signInWithEmailAndPassword(email, password);
-        const emailEl = document.getElementById('email');
-        const passwordEl = document.getElementById('password');
-        if (emailEl) emailEl.value = '';
-        if (passwordEl) passwordEl.value = '';
-        showStatus('Signed in successfully!', 'success');
-      } catch (error) {
-        showStatus(error.message, 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    function signOut() {
-      console.log('🔐 signOut called');
-      firebase.auth().signOut();
-      cart = [];
-      renderCart();
-      showStatus('Signed out successfully!', 'success');
-    }
-
-    // ATTACH AUTH FUNCTIONS TO WINDOW
-    window.signInWithGoogle = signInWithGoogle;
-    window.signUp = signUp;
-    window.signIn = signIn;
-    window.signOut = signOut;
-
-    // CART FUNCTIONS - DEFINED EARLY FOR HTML ONCLICK
-    async function addToCart(id, name, price, emoji) {
-      console.log('🛒 addToCart called:', {id, name, price, emoji});
-      if (!requireLocationVerification()) return;
-      
-      try {
-        // Get active deals for this item
-        const deals = await getActiveDealsForItem(id);
-        
-        // Check if item already exists in cart
-        const existingItemIndex = cart.findIndex(item => 
-          item.id === id && 
-          (!item.dealId || (deals.length > 0 && item.dealId === deals[0].id))
-        );
-        
-        if (existingItemIndex !== -1) {
-          // Item exists, increase quantity
-          cart[existingItemIndex].quantity += 1;
-          console.log(`📦 Increased quantity of ${name} to ${cart[existingItemIndex].quantity}`);
-          showStatus(`${name} quantity increased to ${cart[existingItemIndex].quantity}!`, 'success');
-        } else {
-          // New item, add to cart
-          let newItem = { 
-            id, 
-            name, 
-            price: parseFloat(price), 
-            originalPrice: parseFloat(price),
-            emoji,
-            quantity: 1
-          };
-          
-          // Apply deals
-          if (deals.length > 0) {
-            const bestDeal = deals[0]; // Use first active deal
-            
-            if (bestDeal.type === 'percentage') {
-              const discount = (newItem.price * bestDeal.percentage) / 100;
-              newItem.price = newItem.price - discount;
-              newItem.dealId = bestDeal.id;
-              newItem.dealType = 'percentage';
-              newItem.dealInfo = `${bestDeal.percentage}% off`;
-            } else if (bestDeal.type === 'fixed-discount') {
-              const discount = Math.min(bestDeal.fixedAmount, newItem.price);
-              newItem.price = newItem.price - discount;
-              newItem.dealId = bestDeal.id;
-              newItem.dealType = 'fixed-discount';
-              newItem.dealInfo = `${discount.toFixed(2)} off`;
-            } else if (bestDeal.type === 'buy-get') {
-              newItem.dealId = bestDeal.id;
-              newItem.dealType = 'buy-get';
-              newItem.buyQuantity = bestDeal.buyQuantity;
-              newItem.freeQuantity = bestDeal.freeQuantity;
-              newItem.dealInfo = `Buy ${bestDeal.buyQuantity} Get ${bestDeal.freeQuantity} FREE`;
-            }
-          }
-          
-          console.log('➕ Adding new item to cart:', newItem);
-          cart.push(newItem);
-          showStatus(`${name} added to cart!`, 'success');
-        }
-        
-        // Re-render cart and update count
-        renderCart();
-        updateCartCount();
-        
-      } catch (err) {
-        console.error("Error adding item to cart:", err);
-        showStatus("Failed to add item to cart.", 'error');
-      }
-    }
-
-    function removeFromCart(index) {
-      console.log('🗑️ removeFromCart called:', index);
-      if (index < 0 || index >= cart.length) return;
-      
-      const item = cart[index];
-      cart.splice(index, 1);
-      renderCart();
-      updateCartCount();
-      showStatus(`${item.name} removed from cart.`, 'warning');
-    }
-
-    // ATTACH CART FUNCTIONS TO WINDOW
-    window.addToCart = addToCart;
-    window.removeFromCart = removeFromCart;
-    window.changeQuantity = changeQuantity;
-
-    // DEBUG: Log all critical functions attached
-    console.log('🔧 All critical functions attached to window:', {
-      requestLocation: typeof window.requestLocation,
-      checkLocationAgain: typeof window.checkLocationAgain,
-      switchTab: typeof window.switchTab,
-      signInWithGoogle: typeof window.signInWithGoogle,
-      signUp: typeof window.signUp,
-      signIn: typeof window.signIn,
-      signOut: typeof window.signOut,
-      addToCart: typeof window.addToCart,
-      removeFromCart: typeof window.removeFromCart,
-      changeQuantity: typeof window.changeQuantity
-    });
-
-    // ADDITIONAL FUNCTIONS FOR HTML ONCLICK HANDLERS
-    function updateDeliveryOption() {
-      console.log('📍 updateDeliveryOption called - AUTO REFRESHING');
-      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
-      console.log('📍 Selected delivery option:', selectedOption);
-      
-      const addressSection = document.getElementById('address-section');
-      
-      if (selectedOption === 'delivery') {
-        if (addressSection) addressSection.style.display = 'block';
-      } else {
-        if (addressSection) addressSection.style.display = 'none';
-      }
-      
-      // IMMEDIATE refresh when delivery option changes
-      console.log('🔄 Auto-refreshing totals due to delivery change');
-      setTimeout(() => {
-        forceUpdateTotals();
-      }, 50);
-    }
-
-    function forceUpdateTotals() {
-      console.log('🔄 === FORCE UPDATE TOTALS ===');
-      try {
-        console.log('📦 Current cart state:', cart);
-        console.log('📦 Cart array length:', cart?.length || 'undefined');
-        
-        if (!cart || cart.length === 0) {
-          console.log('⚠️ Cart is empty or undefined');
-          setTimeout(() => {
-            const subtotalEl = document.getElementById('cart-subtotal');
-            const totalEl = document.getElementById('venmo-total');
-            const deliveryEl = document.getElementById('delivery-fee-display');
-            
-            if (subtotalEl) subtotalEl.textContent = '0.00';
-            if (totalEl) totalEl.textContent = '0.00';
-            if (deliveryEl) deliveryEl.textContent = 'Free Pickup';
-            console.log('✅ Reset all totals to zero');
-          }, 50);
-          return;
-        }
-        
-        updateVenmoTotal();
-        updateVenmoLink();
-        console.log('✅ Force update completed');
-      } catch (error) {
-        console.error('❌ Error in forceUpdateTotals:', error);
-      }
-    }
-
-    function forceRefreshCart() {
-      console.log('🔄 === FORCE REFRESH CART ===');
-      
-      // Clear ALL cached data
-      window.processedCartForCalculations = null;
-      window.finalCartTotal = undefined;
-      window.itemGroupsMap = null;
-      
-      console.log('🧹 Cleared all cached cart data');
-      
-      // Force complete re-render
-      renderCart();
-      
-      showStatus('Cart completely refreshed! Check if items are now stacked.', 'success');
-    }
-
-    function testVenmoPayment() {
-      console.log('🧪 Testing Venmo payment link...');
-      
-      if (cart.length === 0) {
-        console.log('⚠️ Cannot test Venmo payment - cart is empty');
-        showStatus('Add items to cart to test Venmo payment', 'warning');
-        return;
-      }
-      
-      updateVenmoLink();
-      
-      const venmoLink = document.getElementById('venmo-payment-link');
-      if (venmoLink) {
-        console.log('✅ Venmo test complete. Link URL:', venmoLink.href);
-        showStatus('Venmo payment link updated successfully! Check console for details.', 'success');
-        
-        // Show test results in console
-        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-        const subtotal = calculateCartSubtotal();
-        console.log('💰 Test Results:');
-        console.log('   Cart items:', cart.length, 'unique items,', totalItems, 'total quantity');
-        console.log('   Subtotal with deals:', subtotal.toFixed(2));
-        console.log('   Delivery fee:', getDeliveryFee().toFixed(2));
-        console.log('   Final total:', (subtotal + getDeliveryFee()).toFixed(2));
-      } else {
-        console.log('❌ Venmo link element not found');
-        showStatus('Error: Venmo payment link not found', 'error');
-      }
-    }
-
-    function debugCartCalculations() {
-      console.log('🔍 === CART DEBUG ANALYSIS ===');
-      console.log('📦 Raw cart:', cart);
-      console.log('📊 Cart items count:', cart.length);
-      
-      let totalQuantity = 0;
-      let subtotalBeforeDeals = 0;
-      
-      cart.forEach((item, index) => {
-        console.log(`  Item ${index + 1}:`, {
-          name: item.name,
-          quantity: item.quantity,
-          originalPrice: item.originalPrice || item.price,
-          currentPrice: item.price,
-          dealInfo: item.dealInfo || 'No deal',
-          dealType: item.dealType || 'No deal type'
-        });
-        
-        totalQuantity += item.quantity;
-        subtotalBeforeDeals += (item.originalPrice || item.price) * item.quantity;
-      });
-      
-      console.log('📈 Summary:');
-      console.log('   Total quantity:', totalQuantity);
-      console.log('   Subtotal before deals:', subtotalBeforeDeals.toFixed(2));
-      console.log('   Subtotal after deals:', calculateCartSubtotal().toFixed(2));
-      console.log('   Delivery fee:', getDeliveryFee().toFixed(2));
-      console.log('   Final total:', (calculateCartSubtotal() + getDeliveryFee()).toFixed(2));
-      
-      // Test deal processing
-      console.log('🏷️ Testing deal processing...');
-      const processedCart = processCartDeals(cart);
-      console.log('   Processed cart items:', processedCart.length);
-      
-      showStatus('Cart debug analysis complete - check console for details', 'success');
-    }
-
-    async function submitVenmoOrder() {
-      console.log('💳 submitVenmoOrder called');
-      if (!requireLocationVerification()) return;
-      
-      if (!currentUser) {
-        showStatus("Please sign in to place an order.", 'warning');
-        switchTab('account');
-        return;
-      }
-      
-      if (cart.length === 0) {
-        showStatus("Your cart is empty.", 'warning');
-        return;
-      }
-
-      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
-      let deliveryDetails = {};
-
-      if (selectedOption === 'delivery') {
-        const address = document.getElementById('delivery-address')?.value?.trim();
-        if (!address) {
-          showStatus("Please enter a delivery address.", 'warning');
-          document.getElementById('delivery-address')?.focus();
-          return;
-        }
-        
-        deliveryDetails = {
-          type: 'delivery',
-          address: address,
-          instructions: document.getElementById('delivery-instructions')?.value?.trim() || '',
-          fee: 1.50
-        };
-      } else {
-        deliveryDetails = {
-          type: 'pickup',
-          location: '7 Moonlight Isle',
-          fee: 0
-        };
-      }
-
-      const submitBtn = document.getElementById('submit-order-btn');
-      const stopLoading = showLoading(submitBtn);
-
-      try {
-        // Generate order ID first
-        const orderId = 'ORDER-' + Date.now().toString().slice(-6);
-        
-        // Expand cart items for order storage (store each quantity as separate line items)
-        const orderItems = [];
-        cart.forEach(cartItem => {
-          for (let i = 0; i < cartItem.quantity; i++) {
-            orderItems.push({
-              id: cartItem.id,
-              name: cartItem.name,
-              price: cartItem.price,
-              originalPrice: cartItem.originalPrice || cartItem.price,
-              emoji: cartItem.emoji,
-              dealId: cartItem.dealId || null,
-              dealType: cartItem.dealType || null,
-              dealInfo: cartItem.dealInfo || null
-            });
-          }
-        });
-        
-        const subtotal = calculateCartSubtotal();
-        const total = subtotal + deliveryDetails.fee;
-        
-        // Update Venmo link with the specific order number
-        updateVenmoLink(orderId);
-        
-        await firebase.firestore().collection('orders').add({
-          userId: currentUser.uid,
-          userEmail: userData.email,
-          items: orderItems, // Store expanded items
-          cartSummary: cart, // Also store cart summary for reference
-          subtotal: subtotal,
-          deliveryDetails: deliveryDetails,
-          total: total,
-          status: 'pending-payment',
-          paymentMethod: 'venmo',
-          orderId: orderId,
-          customerInstructions: 'Payment via Venmo - pending verification',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        cart = [];
-        renderCart();
-        
-        const deliveryText = deliveryDetails.type === 'delivery' 
-          ? `📍 Delivery to: ${deliveryDetails.address}` 
-          : `🏪 Pickup at: ${deliveryDetails.location}`;
-        
-        showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
-        
-        const checkoutSection = document.getElementById('checkout-section');
-        if (checkoutSection) {
-          checkoutSection.innerHTML = `
-            <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
-              <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
-              <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
-              <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> ${total.toFixed(2)}</p>
-              <p style="margin-bottom: 20px;">${deliveryText}</p>
-              <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
-              <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
-            </div>
-          `;
-        }
-        
-      } catch (err) {
-        console.error("Order submission error:", err);
-        showStatus("Failed to submit order. Please try again.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    // ATTACH ALL ADDITIONAL FUNCTIONS TO WINDOW
-    window.updateDeliveryOption = updateDeliveryOption;
-    window.forceUpdateTotals = forceUpdateTotals;
-    window.forceRefreshCart = forceRefreshCart;
-    window.testVenmoPayment = testVenmoPayment;
-    window.debugCartCalculations = debugCartCalculations;
-    window.submitVenmoOrder = submitVenmoOrder;
-
-    console.log('🔧 Additional functions attached to window:', {
-      updateDeliveryOption: typeof window.updateDeliveryOption,
-      forceUpdateTotals: typeof window.forceUpdateTotals,
-      forceRefreshCart: typeof window.forceRefreshCart,
-      testVenmoPayment: typeof window.testVenmoPayment,
-      debugCartCalculations: typeof window.debugCartCalculations,
-      submitVenmoOrder: typeof window.submitVenmoOrder
-    });
-
-    // Helper functions
-    function showStatus(message, type = 'success') {
-      const statusDiv = document.getElementById('status-messages');
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `status-message status-${type}`;
-      messageDiv.textContent = message;
-      statusDiv.appendChild(messageDiv);
-      setTimeout(() => messageDiv.remove(), 5000);
-    }
-
-    function showLoading(buttonElement) {
-      const originalText = buttonElement.textContent;
-      buttonElement.innerHTML = '<span class="loading"></span> Loading...';
-      buttonElement.disabled = true;
-      return () => {
-        buttonElement.textContent = originalText;
-        buttonElement.disabled = false;
-      };
-    }
-
-    // NEW: Updated updateCartCount to show total quantity
-    function updateCartCount() {
-      // Show total number of individual items (quantity-based)
-      const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-      const cartCountEl = document.getElementById('cart-count');
-      
-      if (cartCountEl) {
-        cartCountEl.textContent = totalItems;
-        
-        // Add a subtle animation when count changes
-        cartCountEl.style.transform = 'scale(1.2)';
-        cartCountEl.style.transition = 'transform 0.2s ease';
-        setTimeout(() => {
-          cartCountEl.style.transform = 'scale(1)';
-        }, 200);
-      }
-      
-      // Also log for debugging
-      console.log('📊 Cart count updated:', totalItems, 'total items in', cart.length, 'unique products');
-    }
-
-    function getStatusColor(status) {
-      switch (status) {
-        case 'pending-payment': return '#ff9800';
-        case 'pending': return '#ffc107';
-        case 'preparing': return '#17a2b8';
-        case 'completed': return '#28a745';
-        case 'cancelled': return '#dc3545';
-        default: return '#6c757d';
-      }
-    }
-
-    function showItemUpdateSuccess(itemId) {
-      const itemDiv = document.querySelector(`#edit-form-${itemId}`).closest('.admin-menu-item');
-      itemDiv.classList.add('admin-action-success');
-      setTimeout(() => {
-        itemDiv.classList.remove('admin-action-success');
-      }, 2000);
-    }
-
-    function switchTab(tabName) {
-      if (tabName !== 'cart' && !requireLocationVerification()) return;
-      
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
-      
-      document.getElementById(tabName + '-tab').classList.add('active');
-      document.getElementById(tabName + '-panel').classList.add('active');
-      
-      if (tabName === 'cart') {
-        console.log('🛒 Switched to cart tab - refreshing totals');
-        setTimeout(() => {
-          forceUpdateTotals();
-        }, 200);
-      } else if (tabName === 'orders' && currentUser) {
-        loadUserOrders();
-      } else if (tabName === 'admin' && userData?.role === 'admin') {
-        loadAdminMenuItems();
-        loadAdminOrders('all');
-        // Initialize deals view
-        toggleAdminView('menu');
-      } else if (tabName === 'employees' && userData?.role === 'admin') {
-        loadEmployees();
-      }
-    }
-
-    // Auth functions
-    async function signInWithGoogle() {
-      if (!requireLocationVerification()) return;
-      
-      const googleBtn = event.target;
-      const stopLoading = showLoading(googleBtn);
-
-      try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        provider.addScope('email');
-        provider.addScope('profile');
-        
-        provider.setCustomParameters({
-          prompt: 'select_account'
-        });
-        
-        const result = await firebase.auth().signInWithPopup(provider);
-        showStatus(`Welcome ${result.user.displayName || result.user.email}!`, 'success');
-      } catch (error) {
-        console.error("Google sign in error:", error);
-        if (error.code === 'auth/popup-blocked') {
-          showStatus("Popup was blocked. Please allow popups for this site and try again.", 'error');
-        } else if (error.code === 'auth/popup-closed-by-user') {
-          showStatus("Sign in was cancelled.", 'warning');
-        } else {
-          showStatus("Google sign in failed. Please try again.", 'error');
-        }
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function signUp() {
-      if (!requireLocationVerification()) return;
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      
-      if (!email || !password) {
-        showStatus('Please enter both email and password.', 'warning');
-        return;
-      }
-
-      const signUpBtn = event.target;
-      const stopLoading = showLoading(signUpBtn);
-
-      try {
-        const result = await firebase.auth().createUserWithEmailAndPassword(email, password);
-        await firebase.firestore().collection('users').doc(result.user.uid).set({
-          email,
-          role: 'customer',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        showStatus("Account created successfully!", 'success');
-        document.getElementById('email').value = '';
-        document.getElementById('password').value = '';
-      } catch (error) {
-        showStatus(error.message, 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    async function signIn() {
-      if (!requireLocationVerification()) return;
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      
-      if (!email || !password) {
-        showStatus('Please enter both email and password.', 'warning');
-        return;
-      }
-
-      const signInBtn = event.target;
-      const stopLoading = showLoading(signInBtn);
-
-      try {
-        await firebase.auth().signInWithEmailAndPassword(email, password);
-        document.getElementById('email').value = '';
-        document.getElementById('password').value = '';
-        showStatus('Signed in successfully!', 'success');
-      } catch (error) {
-        showStatus(error.message, 'error');
-      } finally {
-        stopLoading();
-      }
-    }
-
-    function signOut() {
-      firebase.auth().signOut();
-      cart = [];
-      renderCart();
-      showStatus('Signed out successfully!', 'success');
-    }
-
-    // FIXED: Cart functions with stacking support
-    async function addToCart(id, name, price, emoji) {
-      if (!requireLocationVerification()) return;
-      
-      try {
-        // Get active deals for this item
-        const deals = await getActiveDealsForItem(id);
-        
-        // Check if item already exists in cart
-        const existingItemIndex = cart.findIndex(item => 
-          item.id === id && 
-          (!item.dealId || (deals.length > 0 && item.dealId === deals[0].id))
-        );
-        
-        if (existingItemIndex !== -1) {
-          // Item exists, increase quantity
-          cart[existingItemIndex].quantity += 1;
-          console.log(`📦 Increased quantity of ${name} to ${cart[existingItemIndex].quantity}`);
-          showStatus(`${name} quantity increased to ${cart[existingItemIndex].quantity}!`, 'success');
-        } else {
-          // New item, add to cart
-          let newItem = { 
-            id, 
-            name, 
-            price: parseFloat(price), 
-            originalPrice: parseFloat(price),
-            emoji,
-            quantity: 1
-          };
-          
-          // Apply deals
-          if (deals.length > 0) {
-            const bestDeal = deals[0]; // Use first active deal
-            
-            if (bestDeal.type === 'percentage') {
-              const discount = (newItem.price * bestDeal.percentage) / 100;
-              newItem.price = newItem.price - discount;
-              newItem.dealId = bestDeal.id;
-              newItem.dealType = 'percentage';
-              newItem.dealInfo = `${bestDeal.percentage}% off`;
-            } else if (bestDeal.type === 'fixed-discount') {
-              const discount = Math.min(bestDeal.fixedAmount, newItem.price);
-              newItem.price = newItem.price - discount;
-              newItem.dealId = bestDeal.id;
-              newItem.dealType = 'fixed-discount';
-              newItem.dealInfo = `${discount.toFixed(2)} off`;
-            } else if (bestDeal.type === 'buy-get') {
-              newItem.dealId = bestDeal.id;
-              newItem.dealType = 'buy-get';
-              newItem.buyQuantity = bestDeal.buyQuantity;
-              newItem.freeQuantity = bestDeal.freeQuantity;
-              newItem.dealInfo = `Buy ${bestDeal.buyQuantity} Get ${bestDeal.freeQuantity} FREE`;
-            }
-          }
-          
-          console.log('➕ Adding new item to cart:', newItem);
-          cart.push(newItem);
-          showStatus(`${name} added to cart!`, 'success');
-        }
-        
-        // Re-render cart and update count
-        renderCart();
-        updateCartCount();
-        
-      } catch (err) {
-        console.error("Error adding item to cart:", err);
-        showStatus("Failed to add item to cart.", 'error');
-      }
-    }
-
-    function removeFromCart(index) {
-      if (index < 0 || index >= cart.length) return;
-      
-      const item = cart[index];
-      cart.splice(index, 1);
-      renderCart();
-      updateCartCount();
-      showStatus(`${item.name} removed from cart.`, 'warning');
-    }
-
-    // FIXED: Updated order submission for new cart structure
-    async function submitVenmoOrder() {
-      if (!requireLocationVerification()) return;
-      
-      if (!currentUser) {
-        showStatus("Please sign in to place an order.", 'warning');
-        switchTab('account');
-        return;
-      }
-      
-      if (cart.length === 0) {
-        showStatus("Your cart is empty.", 'warning');
-        return;
-      }
-
-      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
-      let deliveryDetails = {};
-
-      if (selectedOption === 'delivery') {
-        const address = document.getElementById('delivery-address')?.value?.trim();
-        if (!address) {
-          showStatus("Please enter a delivery address.", 'warning');
-          document.getElementById('delivery-address')?.focus();
-          return;
-        }
-        
-        deliveryDetails = {
-          type: 'delivery',
-          address: address,
-          instructions: document.getElementById('delivery-instructions')?.value?.trim() || '',
-          fee: 1.50
-        };
-      } else {
-        deliveryDetails = {
-          type: 'pickup',
-          location: '7 Moonlight Isle',
-          fee: 0
-        };
-      }
-
-      const submitBtn = document.getElementById('submit-order-btn');
-      const stopLoading = showLoading(submitBtn);
-
-      try {
-        // Generate order ID first
-        const orderId = 'ORDER-' + Date.now().toString().slice(-6);
-        
-        // Expand cart items for order storage (store each quantity as separate line items)
-        const orderItems = [];
-        cart.forEach(cartItem => {
-          for (let i = 0; i < cartItem.quantity; i++) {
-            orderItems.push({
-              id: cartItem.id,
-              name: cartItem.name,
-              price: cartItem.price,
-              originalPrice: cartItem.originalPrice || cartItem.price,
-              emoji: cartItem.emoji,
-              dealId: cartItem.dealId || null,
-              dealType: cartItem.dealType || null,
-              dealInfo: cartItem.dealInfo || null
-            });
-          }
-        });
-        
-        const subtotal = calculateCartSubtotal();
-        const total = subtotal + deliveryDetails.fee;
-        
-        // Update Venmo link with the specific order number
-        updateVenmoLink(orderId);
-        
-        await firebase.firestore().collection('orders').add({
-          userId: currentUser.uid,
-          userEmail: userData.email,
-          items: orderItems, // Store expanded items
-          cartSummary: cart, // Also store cart summary for reference
-          subtotal: subtotal,
-          deliveryDetails: deliveryDetails,
-          total: total,
-          status: 'pending-payment',
-          paymentMethod: 'venmo',
-          orderId: orderId,
-          customerInstructions: 'Payment via Venmo - pending verification',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        
-        cart = [];
-        renderCart();
-        
-        const deliveryText = deliveryDetails.type === 'delivery' 
-          ? `📍 Delivery to: ${deliveryDetails.address}` 
-          : `🏪 Pickup at: ${deliveryDetails.location}`;
-        
-        showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
-        
-        document.getElementById('checkout-section').innerHTML = `
-          <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
-            <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
-            <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
-            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> ${total.toFixed(2)}</p>
-            <p style="margin-bottom: 20px;">${deliveryText}</p>
-            <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
-            <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
-          </div>
-        `;
-        
-      } catch (err) {
-        console.error("Order submission error:", err);
-        showStatus("Failed to submit order. Please try again.", 'error');
-      } finally {
-        stopLoading();
-      }
-    }usernameDisplay) {
+      if (usernameDisplay) {
         usernameDisplay.textContent = VENMO_USERNAME;
       }
       
@@ -2940,7 +1086,7 @@
       }
     }
 
-    // FIXED: Force complete cart refresh - clears all cache and re-renders
+    // Force complete cart refresh - clears all cache and re-renders
     function forceRefreshCart() {
       console.log('🔄 === FORCE REFRESH CART ===');
       
@@ -2967,6 +1113,11 @@
         return;
       }
       
+      // Force update the processed cart
+      if (window.processedCartForCalculations) {
+        console.log('🔄 Using processed cart with deals for test');
+      }
+      
       updateVenmoLink();
       
       const venmoLink = document.getElementById('venmo-payment-link');
@@ -2975,10 +1126,10 @@
         showStatus('Venmo payment link updated successfully! Check console for details.', 'success');
         
         // Show test results in console
-        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-        const subtotal = calculateCartSubtotal();
+        const cartToUse = window.processedCartForCalculations || cart;
+        const subtotal = cartToUse.reduce((sum, item) => sum + parseFloat(item.price), 0);
         console.log('💰 Test Results:');
-        console.log('   Cart items:', cart.length, 'unique items,', totalItems, 'total quantity');
+        console.log('   Cart items:', cartToUse.length);
         console.log('   Subtotal with deals:', subtotal.toFixed(2));
         console.log('   Delivery fee:', getDeliveryFee().toFixed(2));
         console.log('   Final total:', (subtotal + getDeliveryFee()).toFixed(2));
@@ -2986,44 +1137,6 @@
         console.log('❌ Venmo link element not found');
         showStatus('Error: Venmo payment link not found', 'error');
       }
-    }
-
-    // NEW: Debug function to analyze cart calculations
-    function debugCartCalculations() {
-      console.log('🔍 === CART DEBUG ANALYSIS ===');
-      console.log('📦 Raw cart:', cart);
-      console.log('📊 Cart items count:', cart.length);
-      
-      let totalQuantity = 0;
-      let subtotalBeforeDeals = 0;
-      
-      cart.forEach((item, index) => {
-        console.log(`  Item ${index + 1}:`, {
-          name: item.name,
-          quantity: item.quantity,
-          originalPrice: item.originalPrice || item.price,
-          currentPrice: item.price,
-          dealInfo: item.dealInfo || 'No deal',
-          dealType: item.dealType || 'No deal type'
-        });
-        
-        totalQuantity += item.quantity;
-        subtotalBeforeDeals += (item.originalPrice || item.price) * item.quantity;
-      });
-      
-      console.log('📈 Summary:');
-      console.log('   Total quantity:', totalQuantity);
-      console.log('   Subtotal before deals:', subtotalBeforeDeals.toFixed(2));
-      console.log('   Subtotal after deals:', calculateCartSubtotal().toFixed(2));
-      console.log('   Delivery fee:', getDeliveryFee().toFixed(2));
-      console.log('   Final total:', (calculateCartSubtotal() + getDeliveryFee()).toFixed(2));
-      
-      // Test deal processing
-      console.log('🏷️ Testing deal processing...');
-      const processedCart = processCartDeals(cart);
-      console.log('   Processed cart items:', processedCart.length);
-      
-      showStatus('Cart debug analysis complete - check console for details', 'success');
     }
 
     // DEALS MANAGEMENT FUNCTIONS
@@ -3074,7 +1187,7 @@
           const item = doc.data();
           const option = document.createElement('option');
           option.value = doc.id;
-          option.textContent = `${item.emoji || '🍰'} ${item.name} - $${item.price.toFixed(2)}`;
+          option.textContent = `${item.emoji || '🍰'} ${item.name} - ${item.price.toFixed(2)}`;
           selectElement.appendChild(option);
         });
       } catch (err) {
@@ -3189,7 +1302,7 @@
           } else if (deal.type === 'buy-get') {
             dealDetails = `Buy ${deal.buyQuantity}, Get ${deal.freeQuantity} FREE`;
           } else if (deal.type === 'fixed-discount') {
-            dealDetails = `$${deal.fixedAmount.toFixed(2)} OFF`;
+            dealDetails = `${deal.fixedAmount.toFixed(2)} OFF`;
           }
           
           dealDiv.innerHTML = `
@@ -3388,6 +1501,32 @@
       }
     }
 
+    // Apply deal to cart item
+    function applyDealToItem(item, deal) {
+      if (!deal) return item;
+      
+      let discountedItem = { ...item };
+      
+      if (deal.type === 'percentage') {
+        const discount = (item.price * deal.percentage) / 100;
+        discountedItem.originalPrice = item.price;
+        discountedItem.price = item.price - discount;
+        discountedItem.discount = discount;
+        discountedItem.dealInfo = `${deal.percentage}% off`;
+      } else if (deal.type === 'fixed-discount') {
+        const discount = Math.min(deal.fixedAmount, item.price);
+        discountedItem.originalPrice = item.price;
+        discountedItem.price = item.price - discount;
+        discountedItem.discount = discount;
+        discountedItem.dealInfo = `${discount.toFixed(2)} off`;
+      }
+      // Note: Buy X Get Y deals are handled at checkout level, not per item
+      
+      discountedItem.dealId = deal.id;
+      discountedItem.dealName = deal.name;
+      return discountedItem;
+    }
+
     // EMPLOYEE MANAGEMENT FUNCTIONS
     function showAddEmployeeForm() {
       document.getElementById('add-employee-form').style.display = 'block';
@@ -3479,7 +1618,7 @@
             <div class="menu-item-description">
               ${employee.email ? `📧 ${employee.email}<br>` : ''}
               ${employee.phone ? `📱 ${employee.phone}<br>` : ''}
-              ${employee.hourlyRate ? `💰 $${employee.hourlyRate.toFixed(2)}/hour` : ''}
+              ${employee.hourlyRate ? `💰 ${employee.hourlyRate.toFixed(2)}/hour` : ''}
             </div>
             <div class="item-controls">
               <button class="btn btn-primary" onclick="editEmployee('${doc.id}')">✏️ Edit</button>
@@ -3599,9 +1738,77 @@
         stopLoading();
       }
     }
-
+    function testVenmoPayment() {
+      console.log('🧪 Testing Venmo payment link...');
+      
+      if (cart.length === 0) {
+        console.log('⚠️ Cannot test Venmo payment - cart is empty');
+        showStatus('Add items to cart to test Venmo payment', 'warning');
+        return;
+      }
+      
+      updateVenmoLink();
+      
+      const venmoLink = document.getElementById('venmo-payment-link');
+      if (venmoLink) {
+        console.log('✅ Venmo test complete. Link URL:', venmoLink.href);
+        showStatus('Venmo payment link updated successfully!', 'success');
+      } else {
+        console.log('❌ Venmo link element not found');
+        showStatus('Error: Venmo payment link not found', 'error');
+      }
+    }
     function resetCheckoutUI() {
       console.log('Checkout UI reset (Venmo mode)');
+    }
+
+    function updateDeliveryOption() {
+      console.log('📍 updateDeliveryOption called - AUTO REFRESHING');
+      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
+      console.log('📍 Selected delivery option:', selectedOption);
+      
+      const addressSection = document.getElementById('address-section');
+      
+      if (selectedOption === 'delivery') {
+        if (addressSection) addressSection.style.display = 'block';
+      } else {
+        if (addressSection) addressSection.style.display = 'none';
+      }
+      
+      // IMMEDIATE refresh when delivery option changes
+      console.log('🔄 Auto-refreshing totals due to delivery change');
+      setTimeout(() => {
+        forceUpdateTotals();
+      }, 50);
+    }
+
+    function forceUpdateTotals() {
+      console.log('🔄 === FORCE UPDATE TOTALS ===');
+      try {
+        console.log('📦 Current cart state:', cart);
+        console.log('📦 Cart array length:', cart?.length || 'undefined');
+        
+        if (!cart || cart.length === 0) {
+          console.log('⚠️ Cart is empty or undefined');
+          setTimeout(() => {
+            const subtotalEl = document.getElementById('cart-subtotal');
+            const totalEl = document.getElementById('venmo-total');
+            const deliveryEl = document.getElementById('delivery-fee-display');
+            
+            if (subtotalEl) subtotalEl.textContent = '0.00';
+            if (totalEl) totalEl.textContent = '0.00';
+            if (deliveryEl) deliveryEl.textContent = 'Free Pickup';
+            console.log('✅ Reset all totals to zero');
+          }, 50);
+          return;
+        }
+        
+        updateVenmoTotal();
+        updateVenmoLink();
+        console.log('✅ Force update completed');
+      } catch (error) {
+        console.error('❌ Error in forceUpdateTotals:', error);
+      }
     }
 
     function getDeliveryFee() {
@@ -3611,28 +1818,15 @@
       return fee;
     }
 
-    // NEW: Calculate cart subtotal with quantities and deals
-    function calculateCartSubtotal() {
-      if (!cart || cart.length === 0) return 0;
-      
-      // Process deals first
-      const processedCart = processCartDeals(cart);
-      
-      // Calculate total with quantities
-      const subtotal = processedCart.reduce((sum, item) => {
-        return sum + (parseFloat(item.price) * item.quantity);
-      }, 0);
-      
-      console.log('💰 Calculated subtotal:', subtotal);
-      return subtotal;
-    }
-
-    // FIXED: Updated updateVenmoTotal function to use new cart structure
+    // FIXED: Updated updateVenmoTotal function to use actual cart prices with deals
     function updateVenmoTotal() {
       console.log('💰 updateVenmoTotal called');
       
-      // Calculate subtotal using new cart structure
-      const subtotal = calculateCartSubtotal();
+      // Use processed cart if available (with deals applied), otherwise use regular cart
+      const cartToUse = window.processedCartForCalculations || cart;
+      
+      // Calculate subtotal using actual prices from cart (includes deal discounts)
+      const subtotal = cartToUse.reduce((sum, item) => sum + parseFloat(item.price), 0);
       console.log('📊 Calculated subtotal with deals applied:', subtotal);
       
       // Get delivery fee
@@ -3656,8 +1850,8 @@
       }
       
       if (deliveryEl) {
-        deliveryEl.textContent = deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : 'Free Pickup';
-        console.log('✅ Updated delivery element to:', deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : 'Free Pickup');
+        deliveryEl.textContent = deliveryFee > 0 ? `${deliveryFee.toFixed(2)}` : 'Free Pickup';
+        console.log('✅ Updated delivery element to:', deliveryFee > 0 ? `${deliveryFee.toFixed(2)}` : 'Free Pickup');
       } else {
         console.log('❌ delivery-fee-display element not found');
       }
@@ -3675,7 +1869,7 @@
       console.log('🔗 updateVenmoLink called');
       const venmoLink = document.getElementById('venmo-payment-link');
       if (venmoLink && cart.length > 0) {
-        const subtotal = calculateCartSubtotal();
+        const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
         const deliveryFee = getDeliveryFee();
         const total = subtotal + deliveryFee;
         
@@ -3704,13 +1898,8 @@
 
     // FIXED: Updated generateOrderSummary function with delivery type and order number
     function generateOrderSummary(orderNumber = null) {
-      const orderItems = [];
-      cart.forEach(item => {
-        const quantity = item.quantity > 1 ? ` x${item.quantity}` : '';
-        orderItems.push(`${item.emoji} ${item.name}${quantity} (${(parseFloat(item.price) * item.quantity).toFixed(2)})`);
-      });
-      
-      const subtotal = calculateCartSubtotal();
+      const orderItems = cart.map(item => `${item.emoji} ${item.name} (${parseFloat(item.price).toFixed(2)})`).join(', ');
+      const subtotal = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
       const deliveryFee = getDeliveryFee();
       const total = subtotal + deliveryFee;
       
@@ -3720,34 +1909,112 @@
       // Generate order number if not provided
       const orderNum = orderNumber || ('ORDER-' + Date.now().toString().slice(-6));
       
-      return `Covenant Hills Bakery | ${orderItems.join(', ')} | Delivery Type: ${deliveryText} | Order Number: ${orderNum} | Total: ${total.toFixed(2)}`;
+      return `Covenant Hills Bakery | ${orderItems} | Delivery Type: ${deliveryText} | Order Number: ${orderNum} | Total: ${total.toFixed(2)}`;
     }
 
-    // NEW: Process cart deals with proper buy-X-get-Y logic and stacking
-    function processCartDeals(originalCart) {
-      console.log('🏷️ Processing cart deals...');
-      const processedCart = JSON.parse(JSON.stringify(originalCart)); // Deep copy
+    // FIXED: Updated renderCart function with deals support and buy-X-get-Y logic
+    function renderCart() {
+      console.log('🛒 renderCart called with cart:', cart);
+      const cartDiv = document.getElementById('cart');
       
-      processedCart.forEach((cartItem, index) => {
-        if (cartItem.dealType === 'buy-get' && cartItem.quantity >= cartItem.buyQuantity) {
-          // Calculate how many free items this quantity earns
-          const sets = Math.floor(cartItem.quantity / cartItem.buyQuantity);
-          const freeItems = Math.min(sets * cartItem.freeQuantity, cartItem.quantity - sets * cartItem.buyQuantity);
+      if (cart.length === 0) {
+        cartDiv.innerHTML = '<div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>';
+        document.getElementById('checkout-section').style.display = 'none';
+        updateCartCount();
+        return;
+      }
+
+      document.getElementById('checkout-section').style.display = 'block';
+      resetCheckoutUI();
+
+      // Process buy-X-get-Y deals
+      const processedCart = processBuyGetDeals(cart);
+      
+      let total = 0;
+      let cartHTML = '';
+      
+      processedCart.forEach((item, index) => {
+        const itemPrice = parseFloat(item.price);
+        const originalPrice = item.originalPrice ? parseFloat(item.originalPrice) : itemPrice;
+        total += itemPrice;
+        
+        let priceDisplay = `${itemPrice.toFixed(2)}`;
+        let dealInfo = '';
+        
+        if (item.originalPrice && item.originalPrice !== item.price) {
+          priceDisplay = `<span style="text-decoration: line-through; color: #999;">${originalPrice.toFixed(2)}</span> ${itemPrice.toFixed(2)}`;
+          dealInfo = `<small style="color: #28a745; font-weight: bold;">🏷️ ${item.dealInfo}</small><br>`;
+        }
+        
+        if (item.isFreeItem) {
+          priceDisplay = `<span style="color: #28a745; font-weight: bold;">FREE!</span>`;
+          dealInfo = `<small style="color: #28a745; font-weight: bold;">🎉 ${item.dealInfo}</small><br>`;
+        }
+        
+        cartHTML += `
+          <div class="cart-item ${item.dealId ? 'has-deal' : ''}">
+            <div>
+              <span style="font-size: 1.5rem; margin-right: 10px;">${item.emoji}</span>
+              <strong>${item.name}</strong> - ${priceDisplay}<br>
+              ${dealInfo}
+            </div>
+            <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" onclick="removeFromCart(${index})">Remove</button>
+          </div>
+        `;
+      });
+      
+      cartHTML += `<div class="cart-total">Cart Items Total: ${total.toFixed(2)}</div>`;
+      cartDiv.innerHTML = cartHTML;
+      updateCartCount();
+      
+      // Update checkout totals after rendering
+      setTimeout(() => {
+        console.log('🔄 Auto-updating totals from renderCart');
+        updateVenmoTotal();
+        updateVenmoLink();
+      }, 100);
+    }
+
+    // Process buy-X-get-Y deals at cart level
+    function processBuyGetDeals(originalCart) {
+      const processedCart = [...originalCart];
+      const itemGroups = {};
+      
+      // Group items by deal ID for buy-X-get-Y processing
+      originalCart.forEach((item, index) => {
+        if (item.dealId) {
+          // Get the deal info from Firebase (we'll need to store it when adding to cart)
+          if (item.dealType === 'buy-get') {
+            const key = `${item.dealId}-${item.id}`;
+            if (!itemGroups[key]) {
+              itemGroups[key] = {
+                items: [],
+                deal: item
+              };
+            }
+            itemGroups[key].items.push({ ...item, originalIndex: index });
+          }
+        }
+      });
+      
+      // Apply buy-X-get-Y logic
+      Object.values(itemGroups).forEach(group => {
+        const { items, deal } = group;
+        if (deal.dealType === 'buy-get' && items.length >= deal.buyQuantity) {
+          const sets = Math.floor(items.length / deal.buyQuantity);
+          const freeItems = Math.min(sets * deal.freeQuantity, items.length - sets * deal.buyQuantity);
           
-          if (freeItems > 0) {
-            // Calculate new effective price per item
-            const paidItems = cartItem.quantity - freeItems;
-            const totalCost = paidItems * (cartItem.originalPrice || cartItem.price);
-            const newPricePerItem = totalCost / cartItem.quantity;
-            
-            processedCart[index] = {
-              ...cartItem,
-              price: newPricePerItem,
-              dealInfo: `Buy ${cartItem.buyQuantity} Get ${cartItem.freeQuantity} FREE - ${freeItems} free items included!`,
-              freeItemsCount: freeItems
-            };
-            
-            console.log(`✅ Applied buy-${cartItem.buyQuantity}-get-${cartItem.freeQuantity} deal to ${cartItem.name}: ${freeItems} free items`);
+          // Mark items as free
+          for (let i = 0; i < freeItems; i++) {
+            const freeItemIndex = items[sets * deal.buyQuantity + i].originalIndex;
+            if (processedCart[freeItemIndex]) {
+              processedCart[freeItemIndex] = {
+                ...processedCart[freeItemIndex],
+                price: 0,
+                isFreeItem: true,
+                dealInfo: `Buy ${deal.buyQuantity} Get ${deal.freeQuantity} FREE`
+              };
+            }
           }
         }
       });
@@ -3755,9 +2022,1116 @@
       return processedCart;
     }
 
-    // FIXED: Updated renderCart function with stacking and proper deals
-    function renderCart() {
-      console.log('🛒 renderCart called with cart:', cart);
-      const cartDiv = document.getElementById('cart');
+    // Location verification functions
+    function requestLocation() {
+      if (locationCheckInProgress) return;
       
-      if (
+      locationCheckInProgress = true;
+      const statusDiv = document.getElementById('location-status');
+      const locationBtn = document.getElementById('location-btn');
+      
+      statusDiv.innerHTML = '<span class="loading"></span> Checking your location...';
+      statusDiv.style.color = '#d4691a';
+      locationBtn.disabled = true;
+
+      if (!navigator.geolocation) {
+        showLocationError('Geolocation is not supported by your browser.');
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        verifyLocation,
+        handleLocationError,
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000
+        }
+      );
+    }
+
+    function verifyLocation(position) {
+      const { latitude, longitude } = position.coords;
+      
+      const allowedAreas = [
+        {
+          name: "Covenant Hills",
+          centerLat: 33.5567,
+          centerLng: -117.6648,
+          radius: 3
+        },
+        {
+          name: "Ladera Ranch", 
+          centerLat: 33.5549,
+          centerLng: -117.6419,
+          radius: 3
+        }
+      ];
+
+      let isInServiceArea = false;
+      let nearestArea = null;
+
+      for (const area of allowedAreas) {
+        const distance = calculateDistance(latitude, longitude, area.centerLat, area.centerLng);
+        if (distance <= area.radius) {
+          isInServiceArea = true;
+          nearestArea = area.name;
+          break;
+        }
+      }
+
+      locationCheckInProgress = false;
+
+      if (isInServiceArea) {
+        locationVerified = true;
+        showLocationSuccess(nearestArea);
+        hideLocationVerification();
+        showMainContent();
+      } else {
+        showLocationDenied();
+      }
+    }
+
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+      const R = 3959;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function handleLocationError(error) {
+      locationCheckInProgress = false;
+      let errorMessage = '';
+      
+      switch(error.code) {
+        case error.PERMISSION_DENIED:
+          errorMessage = 'Location access denied. Please enable location services and refresh the page.';
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorMessage = 'Location information unavailable. Please try again.';
+          break;
+        case error.TIMEOUT:
+          errorMessage = 'Location request timed out. Please try again.';
+          break;
+        default:
+          errorMessage = 'An unknown error occurred while retrieving your location.';
+          break;
+      }
+      
+      showLocationError(errorMessage);
+    }
+
+    function showLocationError(message) {
+      const statusDiv = document.getElementById('location-status');
+      const locationBtn = document.getElementById('location-btn');
+      
+      statusDiv.textContent = message;
+      statusDiv.style.color = '#dc3545';
+      locationBtn.disabled = false;
+      locationBtn.textContent = '📍 Try Again';
+    }
+
+    function showLocationSuccess(area) {
+      const statusDiv = document.getElementById('location-status');
+      statusDiv.innerHTML = `✅ Location verified! Welcome to our ${area} service area.`;
+      statusDiv.style.color = '#28a745';
+    }
+
+    function showLocationVerification() {
+      document.getElementById('location-verification').style.display = 'flex';
+      document.getElementById('location-denied').style.display = 'none';
+      document.getElementById('main-content').style.display = 'none';
+    }
+
+    function hideLocationVerification() {
+      document.getElementById('location-verification').style.display = 'none';
+    }
+
+    function showLocationDenied() {
+      document.getElementById('location-verification').style.display = 'none';
+      document.getElementById('location-denied').style.display = 'flex';
+      document.getElementById('main-content').style.display = 'none';
+    }
+
+    function showMainContent() {
+      document.getElementById('main-content').style.display = 'block';
+      document.getElementById('location-verification').style.display = 'none';
+      document.getElementById('location-denied').style.display = 'none';
+    }
+
+    function checkLocationAgain() {
+      showLocationVerification();
+      const locationBtn = document.getElementById('location-btn');
+      const statusDiv = document.getElementById('location-status');
+      locationBtn.disabled = false;
+      locationBtn.textContent = '📍 Share My Location';
+      statusDiv.textContent = '';
+      locationCheckInProgress = false;
+    }
+
+    function requireLocationVerification() {
+      if (!locationVerified) {
+        showStatus('Please verify your location first to access this feature.', 'warning');
+        return false;
+      }
+      return true;
+    }
+
+    // Helper functions
+    function showStatus(message, type = 'success') {
+      const statusDiv = document.getElementById('status-messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `status-message status-${type}`;
+      messageDiv.textContent = message;
+      statusDiv.appendChild(messageDiv);
+      setTimeout(() => messageDiv.remove(), 5000);
+    }
+
+    function showLoading(buttonElement) {
+      const originalText = buttonElement.textContent;
+      buttonElement.innerHTML = '<span class="loading"></span> Loading...';
+      buttonElement.disabled = true;
+      return () => {
+        buttonElement.textContent = originalText;
+        buttonElement.disabled = false;
+      };
+    }
+
+    function updateCartCount() {
+      // Show total number of individual items, not grouped items
+      const totalItems = cart.length;
+      const cartCountEl = document.getElementById('cart-count');
+      
+      if (cartCountEl) {
+        cartCountEl.textContent = totalItems;
+        
+        // Add a subtle animation when count changes
+        cartCountEl.style.transform = 'scale(1.2)';
+        cartCountEl.style.transition = 'transform 0.2s ease';
+        setTimeout(() => {
+          cartCountEl.style.transform = 'scale(1)';
+        }, 200);
+      }
+      
+      // Also log for debugging
+      console.log('📊 Cart count updated:', totalItems);
+    }
+
+    function getStatusColor(status) {
+      switch (status) {
+        case 'pending-payment': return '#ff9800';
+        case 'pending': return '#ffc107';
+        case 'preparing': return '#17a2b8';
+        case 'completed': return '#28a745';
+        case 'cancelled': return '#dc3545';
+        default: return '#6c757d';
+      }
+    }
+
+    function showItemUpdateSuccess(itemId) {
+      const itemDiv = document.querySelector(`#edit-form-${itemId}`).closest('.admin-menu-item');
+      itemDiv.classList.add('admin-action-success');
+      setTimeout(() => {
+        itemDiv.classList.remove('admin-action-success');
+      }, 2000);
+    }
+
+    function switchTab(tabName) {
+      if (tabName !== 'cart' && !requireLocationVerification()) return;
+      
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+      
+      document.getElementById(tabName + '-tab').classList.add('active');
+      document.getElementById(tabName + '-panel').classList.add('active');
+      
+      if (tabName === 'cart') {
+        console.log('🛒 Switched to cart tab - refreshing totals');
+        setTimeout(() => {
+          forceUpdateTotals();
+        }, 200);
+      } else if (tabName === 'orders' && currentUser) {
+        loadUserOrders();
+      } else if (tabName === 'admin' && userData?.role === 'admin') {
+        loadAdminMenuItems();
+        loadAdminOrders('all');
+        // Initialize deals view
+        toggleAdminView('menu');
+      } else if (tabName === 'employees' && userData?.role === 'admin') {
+        loadEmployees();
+      }
+    }
+
+    // Auth functions
+    async function signInWithGoogle() {
+      if (!requireLocationVerification()) return;
+      
+      const googleBtn = event.target;
+      const stopLoading = showLoading(googleBtn);
+
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope('email');
+        provider.addScope('profile');
+        
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
+        
+        const result = await firebase.auth().signInWithPopup(provider);
+        showStatus(`Welcome ${result.user.displayName || result.user.email}!`, 'success');
+      } catch (error) {
+        console.error("Google sign in error:", error);
+        if (error.code === 'auth/popup-blocked') {
+          showStatus("Popup was blocked. Please allow popups for this site and try again.", 'error');
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          showStatus("Sign in was cancelled.", 'warning');
+        } else {
+          showStatus("Google sign in failed. Please try again.", 'error');
+        }
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function signUp() {
+      if (!requireLocationVerification()) return;
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showStatus('Please enter both email and password.', 'warning');
+        return;
+      }
+
+      const signUpBtn = event.target;
+      const stopLoading = showLoading(signUpBtn);
+
+      try {
+        const result = await firebase.auth().createUserWithEmailAndPassword(email, password);
+        await firebase.firestore().collection('users').doc(result.user.uid).set({
+          email,
+          role: 'customer',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus("Account created successfully!", 'success');
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+      } catch (error) {
+        showStatus(error.message, 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function signIn() {
+      if (!requireLocationVerification()) return;
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showStatus('Please enter both email and password.', 'warning');
+        return;
+      }
+
+      const signInBtn = event.target;
+      const stopLoading = showLoading(signInBtn);
+
+      try {
+        await firebase.auth().signInWithEmailAndPassword(email, password);
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
+        showStatus('Signed in successfully!', 'success');
+      } catch (error) {
+        showStatus(error.message, 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    function signOut() {
+      firebase.auth().signOut();
+      cart = [];
+      renderCart();
+      showStatus('Signed out successfully!', 'success');
+    }
+
+    // FIXED: Cart functions with proper deal metadata storage
+    async function addToCart(id, name, price, emoji) {
+      if (!requireLocationVerification()) return;
+      
+      try {
+        // Get active deals for this item
+        const deals = await getActiveDealsForItem(id);
+        
+        let finalItem = { id, name, price: parseFloat(price), emoji };
+        
+        // For buy-X-get-Y deals, store deal info but don't apply discount yet
+        // For percentage/fixed deals, apply immediately
+        if (deals.length > 0) {
+          const bestDeal = deals[0];
+          
+          if (bestDeal.type === 'buy-get') {
+            // Store deal info for cart-level processing
+            finalItem.dealId = bestDeal.id;
+            finalItem.dealType = 'buy-get';
+            finalItem.buyQuantity = bestDeal.buyQuantity;
+            finalItem.freeQuantity = bestDeal.freeQuantity;
+            finalItem.dealInfo = `Buy ${bestDeal.buyQuantity} Get ${bestDeal.freeQuantity} FREE`;
+            // Don't apply discount yet - wait for cart processing
+          } else {
+            // Apply percentage/fixed discounts immediately
+            finalItem = applyDealToItem(finalItem, bestDeal);
+          }
+        }
+        
+        console.log('➕ Adding item to cart:', finalItem);
+        cart.push(finalItem);
+        
+        // Re-render cart (this will apply buy-X-get-Y deals)
+        renderCart();
+        updateCartCount();
+        
+        let message = `${name} added to cart!`;
+        if (finalItem.dealInfo && finalItem.dealType !== 'buy-get') {
+          message += ` 🏷️ ${finalItem.dealInfo} applied!`;
+        } else if (finalItem.dealType === 'buy-get') {
+          message += ` 🏷️ Deal available: ${finalItem.dealInfo}`;
+        }
+        
+        showStatus(message, 'success');
+      } catch (err) {
+        console.error("Error adding item to cart:", err);
+        showStatus("Failed to add item to cart.", 'error');
+      }
+    }
+
+    function removeFromCart(index) {
+      const item = cart[index];
+      cart.splice(index, 1);
+      renderCart();
+      updateCartCount();
+      showStatus(`${item.name} removed from cart.`, 'warning');
+    }
+
+    async function submitVenmoOrder() {
+      if (!requireLocationVerification()) return;
+      
+      if (!currentUser) {
+        showStatus("Please sign in to place an order.", 'warning');
+        switchTab('account');
+        return;
+      }
+      
+      if (cart.length === 0) {
+        showStatus("Your cart is empty.", 'warning');
+        return;
+      }
+
+      const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
+      let deliveryDetails = {};
+
+      if (selectedOption === 'delivery') {
+        const address = document.getElementById('delivery-address')?.value?.trim();
+        if (!address) {
+          showStatus("Please enter a delivery address.", 'warning');
+          document.getElementById('delivery-address')?.focus();
+          return;
+        }
+        
+        deliveryDetails = {
+          type: 'delivery',
+          address: address,
+          instructions: document.getElementById('delivery-instructions')?.value?.trim() || '',
+          fee: 1.50
+        };
+      } else {
+        deliveryDetails = {
+          type: 'pickup',
+          location: '7 Moonlight Isle',
+          fee: 0
+        };
+      }
+
+      const submitBtn = document.getElementById('submit-order-btn');
+      const stopLoading = showLoading(submitBtn);
+
+      try {
+        // Generate order ID first
+        const orderId = 'ORDER-' + Date.now().toString().slice(-6);
+        const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+        const total = subtotal + deliveryDetails.fee;
+        
+        // Update Venmo link with the specific order number
+        updateVenmoLink(orderId);
+        
+        await firebase.firestore().collection('orders').add({
+          userId: currentUser.uid,
+          userEmail: userData.email,
+          items: cart,
+          subtotal: subtotal,
+          deliveryDetails: deliveryDetails,
+          total: total,
+          status: 'pending-payment',
+          paymentMethod: 'venmo',
+          orderId: orderId,
+          customerInstructions: 'Payment via Venmo - pending verification',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        cart = [];
+        renderCart();
+        
+        const deliveryText = deliveryDetails.type === 'delivery' 
+          ? `📍 Delivery to: ${deliveryDetails.address}` 
+          : `🏪 Pickup at: ${deliveryDetails.location}`;
+        
+        showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
+        
+        document.getElementById('checkout-section').innerHTML = `
+          <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
+            <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
+            <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
+            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> ${total.toFixed(2)}</p>
+            <p style="margin-bottom: 20px;">${deliveryText}</p>
+            <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
+            <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
+          </div>
+        `;
+        
+      } catch (err) {
+        console.error("Order submission error:", err);
+        showStatus("Failed to submit order. Please try again.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    // Admin functions
+    function toggleAdminView(view) {
+      if (view === 'menu') {
+        document.getElementById('admin-menu-section').style.display = 'block';
+        document.getElementById('admin-orders-section').style.display = 'none';
+        document.getElementById('admin-deals-section').style.display = 'none';
+        loadAdminMenuItems();
+      } else if (view === 'orders') {
+        document.getElementById('admin-menu-section').style.display = 'none';
+        document.getElementById('admin-orders-section').style.display = 'block';
+        document.getElementById('admin-deals-section').style.display = 'none';
+        loadAdminOrders('all');
+      } else if (view === 'deals') {
+        document.getElementById('admin-menu-section').style.display = 'none';
+        document.getElementById('admin-orders-section').style.display = 'none';
+        document.getElementById('admin-deals-section').style.display = 'block';
+        loadDeals();
+        loadMenuItemsForDeals();
+      }
+    }
+
+    function showAddItemForm() {
+      document.getElementById('add-item-form').style.display = 'block';
+    }
+
+    function hideAddItemForm() {
+      document.getElementById('add-item-form').style.display = 'none';
+      document.getElementById('item-name').value = '';
+      document.getElementById('item-description').value = '';
+      document.getElementById('item-price').value = '';
+      document.getElementById('item-emoji').value = '';
+    }
+
+    async function submitNewItem() {
+      const name = document.getElementById('item-name')?.value?.trim() || '';
+      const description = document.getElementById('item-description')?.value?.trim() || '';
+      const price = parseFloat(document.getElementById('item-price')?.value || 0);
+      const emoji = document.getElementById('item-emoji')?.value?.trim() || '';
+
+      if (!name || !description || isNaN(price) || price <= 0 || !emoji) {
+        showStatus("Please fill in all fields with valid information.", 'warning');
+        return;
+      }
+
+      const submitBtn = event.target;
+      const stopLoading = showLoading(submitBtn);
+
+      try {
+        await firebase.firestore().collection('menuItems').add({
+          name, 
+          description, 
+          price, 
+          emoji, 
+          inStock: true,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`✅ ${name} added to menu successfully!`, 'success');
+        hideAddItemForm();
+        
+        await Promise.all([
+          loadAdminMenuItems(),
+          loadMenuItems()
+        ]);
+        
+      } catch (err) {
+        console.error("Failed to add item:", err);
+        showStatus("❌ Failed to add menu item. Please try again.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function loadAdminMenuItems() {
+      if (!userData || userData.role !== 'admin') return;
+      
+      try {
+        const snapshot = await firebase.firestore().collection('menuItems').orderBy('createdAt', 'desc').get();
+        const menuDiv = document.getElementById('admin-menu-items');
+        
+        if (snapshot.empty) {
+          menuDiv.innerHTML = '<div class="empty-state"><p>No menu items yet.</p></div>';
+          return;
+        }
+
+        menuDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          const itemDiv = document.createElement('div');
+          itemDiv.className = `admin-menu-item ${!item.inStock ? 'out-of-stock' : ''}`;
+          itemDiv.innerHTML = `
+            <div class="stock-indicator ${item.inStock ? 'in-stock' : 'out-of-stock'}">
+              ${item.inStock ? 'In Stock' : 'Out of Stock'}
+            </div>
+            <div class="menu-item-header">
+              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
+              <div class="menu-item-info">
+                <h3>${item.name}</h3>
+                <div class="menu-item-price">$${item.price.toFixed(2)}</div>
+              </div>
+            </div>
+            <div class="menu-item-description">${item.description}</div>
+            <div class="item-controls">
+              <button class="btn btn-primary" onclick="editMenuItem('${doc.id}')">✏️ Edit</button>
+              <button class="btn ${item.inStock ? 'btn-danger' : 'btn-success'}" onclick="toggleItemStock('${doc.id}', ${!item.inStock})">
+                ${item.inStock ? '❌ Out of Stock' : '✅ In Stock'}
+              </button>
+              <button class="btn btn-danger" onclick="deleteMenuItem('${doc.id}', '${item.name}')">🗑️ Delete</button>
+            </div>
+            <div id="edit-form-${doc.id}" class="edit-form" style="display: none;">
+              <input id="edit-name-${doc.id}" value="${item.name}" placeholder="Name">
+              <input id="edit-description-${doc.id}" value="${item.description}" placeholder="Description">
+              <input id="edit-price-${doc.id}" type="number" step="0.01" value="${item.price}" placeholder="Price">
+              <input id="edit-emoji-${doc.id}" value="${item.emoji || ''}" placeholder="Emoji">
+              <div style="margin-top: 10px;">
+                <button class="btn btn-success" onclick="saveMenuItem('${doc.id}')">💾 Save</button>
+                <button class="btn btn-secondary" onclick="cancelEditMenuItem('${doc.id}')">❌ Cancel</button>
+              </div>
+            </div>
+          `;
+          menuDiv.appendChild(itemDiv);
+        });
+      } catch (err) {
+        console.error("Error loading admin menu items:", err);
+        showStatus("Failed to load menu items.", 'error');
+      }
+    }
+
+    function editMenuItem(itemId) {
+      document.getElementById(`edit-form-${itemId}`).style.display = 'block';
+    }
+
+    function cancelEditMenuItem(itemId) {
+      document.getElementById(`edit-form-${itemId}`).style.display = 'none';
+    }
+
+    async function saveMenuItem(itemId) {
+      const name = document.getElementById(`edit-name-${itemId}`).value.trim();
+      const description = document.getElementById(`edit-description-${itemId}`).value.trim();
+      const price = parseFloat(document.getElementById(`edit-price-${itemId}`).value);
+      const emoji = document.getElementById(`edit-emoji-${itemId}`).value.trim();
+
+      if (!name || !description || isNaN(price) || price <= 0) {
+        showStatus("Please fill in all fields with valid information.", 'warning');
+        return;
+      }
+
+      const saveBtn = event.target;
+      const originalText = saveBtn.textContent;
+      saveBtn.innerHTML = '<span class="loading"></span> Saving...';
+      saveBtn.disabled = true;
+
+      try {
+        await firebase.firestore().collection('menuItems').doc(itemId).update({
+          name, description, price, emoji,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus("✅ Menu item updated successfully!", 'success');
+        showItemUpdateSuccess(itemId);
+        
+        cancelEditMenuItem(itemId);
+        
+        await Promise.all([
+          loadAdminMenuItems(),
+          loadMenuItems()
+        ]);
+        
+      } catch (err) {
+        console.error("Failed to update item:", err);
+        showStatus("❌ Failed to update menu item.", 'error');
+        
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+      }
+    }
+
+    async function toggleItemStock(itemId, inStock) {
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        await firebase.firestore().collection('menuItems').doc(itemId).update({
+          inStock,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`✅ Item ${inStock ? 'restocked' : 'marked out of stock'}!`, 'success');
+        
+        await Promise.all([
+          loadAdminMenuItems(),
+          loadMenuItems()
+        ]);
+        
+      } catch (err) {
+        console.error("Failed to update stock:", err);
+        showStatus("❌ Failed to update stock status.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function deleteMenuItem(itemId, itemName) {
+      if (!confirm(`Are you sure you want to delete "${itemName}"? This action cannot be undone.`)) {
+        return;
+      }
+
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        await firebase.firestore().collection('menuItems').doc(itemId).delete();
+        showStatus(`✅ "${itemName}" deleted successfully.`, 'success');
+        
+        await Promise.all([
+          loadAdminMenuItems(),
+          loadMenuItems()
+        ]);
+        
+      } catch (err) {
+        console.error("Failed to delete item:", err);
+        showStatus("❌ Failed to delete menu item.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    // FIXED: Updated loadAdminOrders function with proper filtering
+    async function loadAdminOrders(filter = 'all') {
+      if (!userData || userData.role !== 'admin') return;
+      
+      console.log('📋 Loading admin orders with filter:', filter);
+      
+      try {
+        let query = firebase.firestore().collection('orders');
+        
+        // Apply filtering based on status
+        if (filter !== 'all') {
+          console.log('🔍 Applying filter for status:', filter);
+          query = query.where('status', '==', filter);
+        }
+        
+        // Always order by creation date
+        query = query.orderBy('createdAt', 'desc');
+        
+        console.log('🔄 Executing query...');
+        const snapshot = await query.get();
+        console.log('📊 Query results:', snapshot.size, 'orders found');
+        
+        const ordersDiv = document.getElementById('admin-orders-list');
+        
+        if (snapshot.empty) {
+          const message = filter === 'all' ? 'No orders found.' : `No ${filter} orders found.`;
+          ordersDiv.innerHTML = `<div class="empty-state"><p>${message}</p></div>`;
+          return;
+        }
+
+        ordersDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const order = doc.data();
+          console.log('📋 Processing order:', doc.id, 'Status:', order.status);
+          
+          const orderDiv = document.createElement('div');
+          orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
+          
+          const itemsList = order.items?.map(item => `${item.emoji} ${item.name} - ${item.price.toFixed(2)}`).join('<br>') || 'No items';
+          const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
+          const orderTime = order.createdAt ? order.createdAt.toDate().toLocaleTimeString() : '';
+          
+          const paymentInfo = order.paymentMethod === 'venmo' 
+            ? `<small style="color: #3D95CE;">💳 Venmo Payment</small>` 
+            : `<small style="color: #666;">Payment: ${order.paymentMethod || 'N/A'}</small>`;
+          
+          const statusColor = order.status === 'pending-payment' ? '#ff9800' : getStatusColor(order.status || 'pending');
+          const statusText = order.status === 'pending-payment' ? 'AWAITING PAYMENT' : (order.status || 'pending').toUpperCase();
+          
+          // Add delivery information
+          const deliveryInfo = order.deliveryDetails ? 
+            `<small style="color: #666;">📍 ${order.deliveryDetails.type === 'delivery' ? 'Delivery to: ' + order.deliveryDetails.address : 'Pickup at: ' + order.deliveryDetails.location}</small><br>` : '';
+          
+          orderDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e0e0e0;">
+              <div>
+                <strong>Order #${order.orderId || doc.id.slice(-6)}</strong><br>
+                <small style="color: #666;">${orderDate} ${orderTime}</small><br>
+                <small style="color: #666;">Customer: ${order.userEmail}</small><br>
+                ${deliveryInfo}
+                ${paymentInfo}
+              </div>
+              <div style="padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; background: ${statusColor}; color: white;">
+                ${statusText}
+              </div>
+            </div>
+            <div style="margin: 15px 0;">${itemsList}</div>
+            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">
+              Subtotal: ${order.subtotal?.toFixed(2) || '0.00'} | 
+              Delivery: ${order.deliveryDetails?.fee?.toFixed(2) || '0.00'} | 
+              Total: ${order.total?.toFixed(2) || '0.00'}
+            </div>
+            <div class="order-actions">
+              ${order.status === 'pending-payment' ? 
+                `<button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'pending')" style="background: #28a745;">✅ Payment Received</button>` : 
+                `<button class="btn btn-primary" onclick="updateOrderStatus('${doc.id}', 'pending')">📋 Pending</button>`
+              }
+              <button class="btn btn-secondary" onclick="updateOrderStatus('${doc.id}', 'preparing')">👨‍🍳 Preparing</button>
+              <button class="btn btn-success" onclick="updateOrderStatus('${doc.id}', 'completed')">✅ Completed</button>
+              <button class="btn btn-danger" onclick="updateOrderStatus('${doc.id}', 'cancelled')">❌ Cancel</button>
+              <button class="btn btn-danger" onclick="deleteOrder('${doc.id}', 'admin')" style="background: #8b0000;">🗑️ Delete Order</button>
+            </div>
+          `;
+          ordersDiv.appendChild(orderDiv);
+        });
+        
+        console.log('✅ Admin orders loaded successfully');
+      } catch (err) {
+        console.error("❌ Error loading admin orders:", err);
+        console.error("Error details:", err.code, err.message);
+        showStatus(`Failed to load orders: ${err.message}`, 'error');
+        
+        const ordersDiv = document.getElementById('admin-orders-list');
+        ordersDiv.innerHTML = `<div class="empty-state"><p>Error loading orders. Check console for details.</p></div>`;
+      }
+    }
+
+    async function updateOrderStatus(orderId, newStatus) {
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        await firebase.firestore().collection('orders').doc(orderId).update({
+          status: newStatus,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        showStatus(`✅ Order status updated to ${newStatus}!`, 'success');
+        
+        loadAdminOrders('all');
+        
+      } catch (err) {
+        console.error("Failed to update order status:", err);
+        showStatus("❌ Failed to update order status.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function deleteOrder(orderId, userType) {
+      const confirmMessage = userType === 'admin' 
+        ? `Are you sure you want to permanently delete this order? This action cannot be undone.`
+        : `Are you sure you want to delete this order? This action cannot be undone.`;
+      
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        if (userType === 'user') {
+          const orderDoc = await firebase.firestore().collection('orders').doc(orderId).get();
+          if (!orderDoc.exists) {
+            showStatus("Order not found.", 'error');
+            return;
+          }
+          
+          const orderData = orderDoc.data();
+          if (orderData.userId !== currentUser.uid) {
+            showStatus("You can only delete your own orders.", 'error');
+            return;
+          }
+        }
+
+        await firebase.firestore().collection('orders').doc(orderId).delete();
+        
+        showStatus("✅ Order deleted successfully!", 'success');
+        
+        if (userType === 'admin') {
+          loadAdminOrders('all');
+        } else {
+          loadUserOrders();
+        }
+      } catch (err) {
+        console.error("Failed to delete order:", err);
+        showStatus("❌ Failed to delete order. Please try again.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    // Load menu items with deals
+    async function loadMenuItems() {
+      try {
+        const snapshot = await firebase.firestore().collection('menuItems').where('inStock', '==', true).get();
+        const menuDiv = document.getElementById('menu');
+        
+        if (snapshot.empty) {
+          menuDiv.innerHTML = '<div class="empty-state"><p>No items available right now. Check back soon!</p></div>';
+          return;
+        }
+
+        // Get all active deals
+        const dealsSnapshot = await firebase.firestore().collection('deals').where('isActive', '==', true).get();
+        const dealsByItem = {};
+        
+        dealsSnapshot.forEach(doc => {
+          const deal = doc.data();
+          if (!dealsByItem[deal.menuItemId]) {
+            dealsByItem[deal.menuItemId] = [];
+          }
+          dealsByItem[deal.menuItemId].push({ id: doc.id, ...deal });
+        });
+
+        menuDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          const itemDeals = dealsByItem[doc.id] || [];
+          
+          const itemDiv = document.createElement('div');
+          itemDiv.className = `menu-item ${itemDeals.length > 0 ? 'has-deal' : ''}`;
+          
+          // Generate deal badges and descriptions
+          let dealBadges = '';
+          let dealDescriptions = '';
+          
+          itemDeals.forEach(deal => {
+            let badgeText = '';
+            if (deal.type === 'percentage') {
+              badgeText = `${deal.percentage}% OFF`;
+            } else if (deal.type === 'buy-get') {
+              badgeText = `Buy ${deal.buyQuantity} Get ${deal.freeQuantity} FREE`;
+            } else if (deal.type === 'fixed-discount') {
+              badgeText = `${deal.fixedAmount.toFixed(2)} OFF`;
+            }
+            
+            dealBadges += `<div class="deal-badge">${badgeText}</div>`;
+            
+            if (deal.description) {
+              dealDescriptions += `<div class="deal-description">🏷️ ${deal.description}</div>`;
+            }
+          });
+          
+          itemDiv.innerHTML = `
+            ${dealBadges}
+            <div class="menu-item-header">
+              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
+              <div class="menu-item-info">
+                <h3>${item.name}</h3>
+                <div class="menu-item-price">${item.price.toFixed(2)}</div>
+              </div>
+            </div>
+            <div class="menu-item-description">${item.description}</div>
+            ${dealDescriptions}
+            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '🍰'}')">Add to Cart</button>
+          `;
+          menuDiv.appendChild(itemDiv);
+        });
+      } catch (err) {
+        console.error("Error loading menu items:", err);
+        showStatus("Failed to load menu items.", 'error');
+      }
+    }
+
+    async function loadUserOrders() {
+      if (!currentUser) return;
+      
+      try {
+        const snapshot = await firebase.firestore().collection('orders')
+          .where('userId', '==', currentUser.uid)
+          .orderBy('createdAt', 'desc')
+          .get();
+        
+        const ordersDiv = document.getElementById('orders-list');
+        
+        if (snapshot.empty) {
+          ordersDiv.innerHTML = '<div class="empty-state"><p>You haven\'t placed any orders yet.</p></div>';
+          return;
+        }
+
+        ordersDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const order = doc.data();
+          const orderDiv = document.createElement('div');
+          orderDiv.style.cssText = 'background: white; padding: 20px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e0e0e0;';
+          
+          const itemsList = order.items.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>');
+          const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
+          
+          orderDiv.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+              <strong>Order from ${orderDate}</strong>
+              <div style="padding: 5px 10px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; background: ${getStatusColor(order.status || 'pending')}; color: white;">
+                ${(order.status || 'pending').toUpperCase()}
+              </div>
+            </div>
+            <div style="margin: 10px 0;">${itemsList}</div>
+            <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: $${order.total.toFixed(2)}</div>
+            <div style="text-align: right;">
+              <button class="btn btn-danger" onclick="deleteOrder('${doc.id}', 'user')" style="padding: 8px 15px; font-size: 0.9rem;">🗑️ Delete Order</button>
+            </div>
+          `;
+          ordersDiv.appendChild(orderDiv);
+        });
+      } catch (err) {
+        console.error("Error loading orders:", err);
+        showStatus("Failed to load orders.", 'error');
+      }
+    }
+
+    async function handleAuthStateChange(user) {
+      try {
+        if (user) {
+          currentUser = user;
+          
+          const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+          
+          if (!userDoc.exists) {
+            await firebase.firestore().collection('users').doc(user.uid).set({
+              email: user.email,
+              displayName: user.displayName || '',
+              photoURL: user.photoURL || '',
+              role: 'customer',
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            userData = {
+              email: user.email,
+              displayName: user.displayName || '',
+              photoURL: user.photoURL || '',
+              role: 'customer'
+            };
+          } else {
+            userData = userDoc.data();
+          }
+
+          document.getElementById('signed-out-view').style.display = 'none';
+          document.getElementById('signed-in-view').style.display = 'block';
+          document.getElementById('user-email-display').textContent = userData.email;
+          document.getElementById('user-role-display').textContent = `Role: ${userData.role}`;
+          
+          const avatarDiv = document.getElementById('user-avatar');
+          if (userData.photoURL) {
+            avatarDiv.innerHTML = `<img src="${userData.photoURL}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" alt="Profile">`;
+          } else {
+            const initial = (userData.displayName || userData.email).charAt(0).toUpperCase();
+            avatarDiv.textContent = initial;
+            avatarDiv.style.background = '#d4691a';
+            avatarDiv.style.color = 'white';
+          }
+          
+          document.getElementById('orders-tab').style.display = 'block';
+          if (userData.role === 'admin') {
+            document.getElementById('admin-tab').style.display = 'block';
+            document.getElementById('employees-tab').style.display = 'block';
+            
+            // Check Firestore permissions for admin features
+            setTimeout(() => checkFirestorePermissions(), 1000);
+          }
+
+          await loadMenuItems();
+        } else {
+          currentUser = null;
+          userData = null;
+          
+          document.getElementById('signed-out-view').style.display = 'block';
+          document.getElementById('signed-in-view').style.display = 'none';
+          document.getElementById('orders-tab').style.display = 'none';
+          document.getElementById('admin-tab').style.display = 'none';
+          document.getElementById('employees-tab').style.display = 'none';
+          
+          document.getElementById('menu').innerHTML = '<div class="empty-state"><p>Sign in to view our delicious menu items!</p></div>';
+          cart = [];
+          renderCart();
+          switchTab('account');
+        }
+      } catch (error) {
+        console.error("Auth state change error:", error);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        firebase.auth().onAuthStateChanged(handleAuthStateChange);
+        updateCartCount();
+        
+        // Initialize Venmo payment system
+        initializeVenmoPayment();
+        
+        console.log('🔥 Firebase initialized successfully!');
+        
+        console.log('🧪 Testing function availability:');
+        console.log('resetCheckoutUI:', typeof resetCheckoutUI);
+        console.log('renderCart:', typeof renderCart);
+        console.log('updateCartCount:', typeof updateCartCount);
+        console.log('updateDeliveryOption:', typeof updateDeliveryOption);
+        console.log('forceUpdateTotals:', typeof forceUpdateTotals);
+        console.log('updateVenmoTotal:', typeof updateVenmoTotal);
+        
+        showLocationVerification();
+        
+        // Initialize deal form fields toggle
+        setTimeout(() => {
+          if (document.getElementById('deal-type')) {
+            toggleDealFields();
+          }
+        }, 1000);
+      } catch (error) {
+        console.error('Failed to initialize Firebase:', error);
+        showStatus('Failed to load the application. Please refresh the page.', 'error');
+      }
+    });
+
+    document.addEventListener('keypress', function(e) {
+      if (e.target.id === 'email' || e.target.id === 'password') {
+        if (e.key === 'Enter') {
+          signIn();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
