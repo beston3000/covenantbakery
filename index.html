@@ -65,6 +65,7 @@
         <button class="tab-button" onclick="switchTab('orders')" id="orders-tab" style="display: none;">📋 Orders</button>
         <button class="tab-button" onclick="switchTab('admin')" id="admin-tab" style="display: none;">👑 Admin</button>
         <button class="tab-button" onclick="switchTab('employees')" id="employees-tab" style="display: none;">👥 Employees</button>
+        <button class="tab-button" onclick="switchTab('profit')" id="profit-tab" style="display: none;">💰 Profit</button>
       </div>
 
       <div class="tab-content">
@@ -198,6 +199,7 @@
               <input id="item-name" placeholder="Item Name (e.g., Chocolate Croissant)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
               <input id="item-description" placeholder="Description" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
               <input id="item-price" type="number" step="0.01" placeholder="Price (e.g., 4.99)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <input id="item-cost" type="number" step="0.01" placeholder="Cost to make (e.g., 1.50)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
               <input id="item-stock" type="number" placeholder="Stock Quantity (e.g., 10)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
               <input id="item-emoji" placeholder="Emoji (e.g., 🥐)" style="margin-bottom: 15px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
               <div>
@@ -347,6 +349,31 @@
             </div>
           </div>
         </div>
+
+        <div id="profit-panel" class="tab-panel">
+          <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">💰 Daily Profit Summary</h2>
+          <div id="profit-summary" class="profit-summary">
+            <div class="summary-card">
+              <h4>Total Revenue</h4>
+              <p id="profit-revenue">$0.00</p>
+            </div>
+            <div class="summary-card">
+              <h4>Total Costs</h4>
+              <p id="profit-costs">$0.00</p>
+            </div>
+            <div class="summary-card net-profit">
+              <h4>Net Profit</h4>
+              <p id="profit-net">$0.00</p>
+            </div>
+          </div>
+          <div id="daily-orders-breakdown">
+            <h3 style="color: #d4691a; margin-top: 40px; margin-bottom: 15px;">Today's Completed Orders</h3>
+            <div id="profit-orders-list">
+              <div class="empty-state"><p>No completed orders today.</p></div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
     </div>
