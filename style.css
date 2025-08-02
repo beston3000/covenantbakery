@@ -486,22 +486,6 @@ input:focus {
   transition: transform 0.2s ease;
 }
 
-.debug-btn {
-  background: #e4e4e7 !important;
-  border: 1px solid #d4d4d8 !important;
-  color: #3f3f46 !important;
-  padding: 5px 10px !important;
-  border-radius: 5px !important;
-  font-size: 0.8rem !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-}
-
-.debug-btn:hover {
-  background: #d4d4d8 !important;
-  transform: translateY(-1px) !important;
-}
-
 #checkout-section {
   transition: all 0.3s ease;
 }
