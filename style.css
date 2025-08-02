@@ -26,7 +26,7 @@ body {
   padding: 50px 30px;
   border-radius: 25px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e4e4e7;
+  border: 5px solid #18181b;
   position: relative;
   overflow: hidden;
 }
@@ -537,4 +537,3 @@ label:hover {
   .tab-button { padding: 20px 15px; font-size: 1rem; }
   .container { padding: 15px; }
 }
-
