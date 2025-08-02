@@ -793,7 +793,6 @@
           </div>
           <div id="checkout-section" style="display: none; margin-top: 30px;">
             
-            <!-- Delivery Options -->
             <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(0, 0, 0, 0.1);">
               <h4 style="color: #d4691a; margin-bottom: 20px; text-align: center;">📍 Delivery Options</h4>
               
@@ -809,7 +808,6 @@
                 </label>
               </div>
               
-              <!-- Address Input (hidden by default) -->
               <div id="address-section" style="display: none; background: rgba(248, 249, 250, 0.9); padding: 20px; border-radius: 10px; margin-top: 15px;">
                 <h5 style="color: #667eea; margin-bottom: 15px;">📍 Delivery Address</h5>
                 <input id="delivery-address" type="text" placeholder="Enter your full address in Covenant Hills or Ladera Ranch" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 10px;">
@@ -817,12 +815,10 @@
               </div>
             </div>
 
-            <!-- Payment Instructions -->
             <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px;">
               <h3 style="margin-bottom: 15px; font-family: 'Playfair Display', serif;">💳 Payment Instructions</h3>
               <p style="margin-bottom: 20px; opacity: 0.9;">To complete your order, please send payment via Venmo:</p>
               
-              <!-- Venmo Payment Button -->
               <a id="venmo-payment-link" href="https://venmo.com/u/YOUR_VENMO_USERNAME" target="_blank" style="display: inline-block; background: #3D95CE; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin: 10px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(61, 149, 206, 0.4);">
                 📱 Pay with Venmo
               </a>
@@ -840,7 +836,6 @@
               </div>
             </div>
             
-            <!-- Order Confirmation -->
             <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; text-align: center;">
               <h4 style="color: #d4691a; margin-bottom: 15px;">📋 After Payment</h4>
               <p style="margin-bottom: 20px; color: #666;">Once you've sent the Venmo payment, click below to submit your order:</p>
@@ -860,7 +855,6 @@
         <div id="admin-panel" class="tab-panel">
           <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">👑 Admin Dashboard</h2>
           
-          <!-- Admin Controls -->
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
             <h3 style="margin-bottom: 20px;">Admin Controls</h3>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
@@ -870,7 +864,6 @@
               <button class="btn btn-secondary" onclick="toggleAdminView('deals')">🏷️ Manage Deals</button>
             </div>
             
-            <!-- Add Item Form -->
             <div id="add-item-form" style="display:none; background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
               <h4 style="margin-bottom: 15px;">Add New Bakery Item</h4>
               <input id="item-name" placeholder="Item Name (e.g., Chocolate Croissant)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
@@ -884,7 +877,6 @@
             </div>
           </div>
           
-          <!-- Menu Management Section -->
           <div id="admin-menu-section">
             <h3 style="color: #d4691a; margin-bottom: 15px;">📦 Menu Management</h3>
             <div id="admin-menu-items" class="menu-grid">
@@ -892,7 +884,6 @@
             </div>
           </div>
           
-          <!-- Orders Management Section -->
           <div id="admin-orders-section" style="display: none;">
             <h3 style="color: #d4691a; margin-bottom: 15px;">📋 Order Management</h3>
             <div style="margin-bottom: 20px;">
@@ -907,18 +898,15 @@
             </div>
           </div>
 
-          <!-- Deals Management Section -->
           <div id="admin-deals-section" style="display: none;">
             <h3 style="color: #d4691a; margin-bottom: 15px;">🏷️ Deal Management</h3>
             
-            <!-- Add Deal Controls -->
             <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; margin-bottom: 20px;">
               <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
                 <button class="btn btn-success" onclick="showAddDealForm()">➕ Add New Deal</button>
                 <button class="btn btn-secondary" onclick="loadDeals()">🔄 Refresh Deals</button>
               </div>
               
-              <!-- Add Deal Form -->
               <div id="add-deal-form" style="display: none; background: rgba(248, 249, 250, 0.9); padding: 20px; border-radius: 10px; margin-top: 20px;">
                 <h4 style="color: #d4691a; margin-bottom: 15px;">Create New Deal</h4>
                 
@@ -945,13 +933,11 @@
                   </select>
                 </div>
                 
-                <!-- Percentage Discount Fields -->
                 <div id="percentage-fields" style="margin-bottom: 15px;">
                   <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Discount Percentage:</label>
                   <input id="deal-percentage" type="number" min="1" max="99" placeholder="e.g., 25" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
                 </div>
                 
-                <!-- Buy X Get Y Fields -->
                 <div id="buy-get-fields" style="display: none; margin-bottom: 15px;">
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div>
@@ -965,7 +951,6 @@
                   </div>
                 </div>
                 
-                <!-- Fixed Discount Fields -->
                 <div id="fixed-discount-fields" style="display: none; margin-bottom: 15px;">
                   <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Discount Amount ($):</label>
                   <input id="deal-fixed-amount" type="number" step="0.01" min="0.01" placeholder="e.g., 2.50" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
@@ -983,7 +968,6 @@
               </div>
             </div>
             
-            <!-- Active Deals List -->
             <div id="deals-list">
               <div class="empty-state"><p>Loading deals...</p></div>
             </div>
@@ -993,7 +977,6 @@
         <div id="employees-panel" class="tab-panel">
           <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">👥 Employee Management</h2>
           
-          <!-- Employee Controls -->
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
             <h3 style="margin-bottom: 20px;">Employee Controls</h3>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
@@ -1001,7 +984,6 @@
               <button class="btn btn-secondary" onclick="loadEmployees()">🔄 Refresh List</button>
             </div>
             
-            <!-- Add Employee Form -->
             <div id="add-employee-form" style="display:none; background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
               <h4 style="margin-bottom: 15px;">Add New Employee</h4>
               <input id="employee-name" placeholder="Employee Name (e.g., John Smith)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
@@ -1016,7 +998,6 @@
             </div>
           </div>
           
-          <!-- Employee List -->
           <div id="employees-section">
             <h3 style="color: #d4691a; margin-bottom: 15px;">👥 Current Employees</h3>
             <div id="employees-list" class="menu-grid">
@@ -1116,6 +1097,81 @@
         itemDiv.classList.remove('admin-action-success');
       }, 2000);
     }
+    
+    // *** START: ADDED FUNCTIONS TO FIX ERRORS ***
+
+    /**
+     * Verifies that the logged-in admin has the necessary Firestore permissions.
+     */
+    async function checkFirestorePermissions() {
+      if (!currentUser || !userData || userData.role !== 'admin') {
+        return;
+      }
+      console.log('🔑 Verifying admin Firestore permissions...');
+      try {
+        // Attempt a read operation that should be restricted to admins (e.g., reading the users collection)
+        // This relies on Firestore security rules being set up correctly.
+        await firebase.firestore().collection('users').limit(1).get();
+        console.log('✅ Admin permissions verified successfully.');
+      } catch (error) {
+        console.error('❌ Firestore Permission Error:', error.message);
+        showStatus('Warning: Could not verify admin permissions. Check Firestore rules.', 'warning');
+      }
+    }
+
+    /**
+     * Fetches all active deals for a given menu item from Firestore.
+     * @param {string} itemId - The ID of the menu item.
+     * @returns {Promise<Array>} A promise that resolves to an array of deal objects.
+     */
+    async function getActiveDealsForItem(itemId) {
+      try {
+        const dealsSnapshot = await firebase.firestore().collection('deals')
+          .where('isActive', '==', true)
+          .where('menuItemId', '==', itemId)
+          .get();
+
+        if (dealsSnapshot.empty) {
+          return [];
+        }
+
+        const deals = [];
+        dealsSnapshot.forEach(doc => {
+          deals.push({ dealId: doc.id, ...doc.data() });
+        });
+        return deals;
+      } catch (err) {
+        console.error("Error fetching active deals:", err);
+        showStatus('Could not fetch item deals.', 'error');
+        return []; // Return an empty array on error to prevent crashes
+      }
+    }
+    
+    /**
+     * Applies a discount deal to a cart item.
+     * @param {object} item - The original cart item.
+     * @param {object} deal - The deal object to apply.
+     * @returns {object} The new item with the discount applied.
+     */
+    function applyDealToItem(item, deal) {
+      let newItem = { ...item, dealId: deal.dealId, dealType: deal.type };
+
+      switch (deal.type) {
+        case 'percentage':
+          const discount = newItem.price * (deal.percentage / 100);
+          newItem.price = parseFloat((newItem.price - discount).toFixed(2));
+          newItem.dealInfo = `${deal.percentage}% off`;
+          break;
+        case 'fixed-discount':
+          newItem.price = parseFloat(Math.max(0, newItem.price - deal.fixedAmount).toFixed(2));
+          newItem.dealInfo = `$${deal.fixedAmount.toFixed(2)} off`;
+          break;
+        // 'buy-get' type is handled by adding free items, not by changing the price here.
+      }
+      return newItem;
+    }
+
+    // *** END: ADDED FUNCTIONS TO FIX ERRORS ***
 
     function initializeVenmoPayment() {
       console.log('💳 Initializing Venmo payment system...');
