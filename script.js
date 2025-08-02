@@ -800,24 +800,31 @@ async function loadAdminOrders(filter = 'all') {
     }
 }
 
-function toggleAdminView(view) {
-  if (view === 'menu') {
-    document.getElementById('admin-menu-section').style.display = 'block';
-    document.getElementById('admin-orders-section').style.display = 'none';
-    document.getElementById('admin-deals-section').style.display = 'none';
-    loadAdminMenuItems();
-  } else if (view === 'orders') {
-    document.getElementById('admin-menu-section').style.display = 'none';
-    document.getElementById('admin-orders-section').style.display = 'block';
-    document.getElementById('admin-deals-section').style.display = 'none';
-    loadAdminOrders('all');
-  } else if (view === 'deals') {
-    document.getElementById('admin-menu-section').style.display = 'none';
-    document.getElementById('admin-orders-section').style.display = 'none';
-    document.getElementById('admin-deals-section').style.display = 'block';
-    loadDeals();
-    loadMenuItemsForDeals();
-  }
+function toggleAdminSection(sectionName) {
+    // Hide all admin sections
+    document.querySelectorAll('.admin-section').forEach(section => {
+        section.style.display = 'none';
+    });
+
+    // Show the selected section
+    const sectionToShow = document.getElementById(`admin-${sectionName}-section`);
+    if (sectionToShow) {
+        sectionToShow.style.display = 'block';
+    }
+
+    // Load data for the selected section
+    if (sectionName === 'menu') {
+        loadAdminMenuItems();
+    } else if (sectionName === 'orders') {
+        loadAdminOrders('all');
+    } else if (sectionName === 'deals') {
+        loadDeals();
+        loadMenuItemsForDeals();
+    } else if (sectionName === 'employees') {
+        loadEmployees();
+    } else if (sectionName === 'profit') {
+        calculateAndShowProfit();
+    }
 }
 
 function switchTab(tabName) {
@@ -832,21 +839,13 @@ function switchTab(tabName) {
   if (tabName === 'menu') {
     refreshMenu();
   } else if (tabName === 'cart') {
-    console.log('🛒 Switched to cart tab - refreshing totals');
     setTimeout(() => {
       forceUpdateTotals();
     }, 200);
   } else if (tabName === 'orders' && currentUser) {
     loadUserOrders();
   } else if (tabName === 'admin' && userData?.role === 'admin') {
-    loadAdminMenuItems();
-    loadAdminOrders('all');
-    // Initialize deals view
-    toggleAdminView('menu');
-  } else if (tabName === 'employees' && userData?.role === 'admin') {
-    loadEmployees();
-  } else if (tabName === 'profit' && userData?.role === 'admin') {
-    calculateAndShowProfit();
+    toggleAdminSection('menu'); // Set default view for admin panel
   }
 }
 
@@ -1045,7 +1044,7 @@ function renderCart() {
         const { item, quantity, indices } = group;
         const indexToRemove = indices[indices.length - 1]; // Get last index for removal
         const priceDisplay = `$${parseFloat(item.price).toFixed(2)}`;
-        const quantityDisplay = quantity > 1 ? ` <strong style="color: #667eea;">(x${quantity})</strong>` : '';
+        const quantityDisplay = quantity > 1 ? ` <strong style="color: #18181b;">(x${quantity})</strong>` : '';
         cartHTML += `
             <div class="cart-item">
                 <div>
@@ -1925,8 +1924,6 @@ async function handleAuthStateChange(user) {
       document.getElementById('orders-tab').style.display = 'block';
       if (userData.role === 'admin') {
         document.getElementById('admin-tab').style.display = 'block';
-        document.getElementById('employees-tab').style.display = 'block';
-        document.getElementById('profit-tab').style.display = 'block';
       }
 
       await loadMenuItems();
@@ -1938,8 +1935,6 @@ async function handleAuthStateChange(user) {
       document.getElementById('signed-in-view').style.display = 'none';
       document.getElementById('orders-tab').style.display = 'none';
       document.getElementById('admin-tab').style.display = 'none';
-      document.getElementById('employees-tab').style.display = 'none';
-      document.getElementById('profit-tab').style.display = 'none';
       
       document.getElementById('menu').innerHTML = '<div class="empty-state"><p>Sign in to view our delicious menu items!</p></div>';
       cart = [];
@@ -1961,14 +1956,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeVenmoPayment();
     
     console.log('🔥 Firebase initialized successfully!');
-    
-    console.log('🧪 Testing function availability:');
-    console.log('resetCheckoutUI:', typeof resetCheckoutUI);
-    console.log('renderCart:', typeof renderCart);
-    console.log('updateCartCount:', typeof updateCartCount);
-    console.log('updateDeliveryOption:', typeof updateDeliveryOption);
-    console.log('forceUpdateTotals:', typeof forceUpdateTotals);
-    console.log('updateVenmoTotal:', typeof updateVenmoTotal);
     
     showLocationVerification();
     
