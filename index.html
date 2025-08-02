@@ -2331,12 +2331,87 @@
         } else {
           loadUserOrders();
         }
+        
+        // After deleting, reset the cart view to avoid softlock
+        resetCartView();
+        
       } catch (err) {
         console.error("Failed to delete order:", err);
         showStatus("❌ Failed to delete order. Please try again.", 'error');
       } finally {
         stopLoading();
       }
+    }
+    
+    /**
+     * Resets the cart and checkout UI to its default empty state.
+     */
+    function resetCartView() {
+      const cartDiv = document.getElementById('cart');
+      const checkoutSection = document.getElementById('checkout-section');
+      
+      // Original checkout section HTML for restoration
+      const originalCheckoutHTML = `
+        <!-- Delivery Options -->
+        <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(0, 0, 0, 0.1);">
+          <h4 style="color: #d4691a; margin-bottom: 20px; text-align: center;">📍 Delivery Options</h4>
+          <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; transition: all 0.3s ease;">
+              <input type="radio" name="delivery-option" value="pickup" checked onchange="updateDeliveryOption(); console.log('📍 Pickup selected - triggering update');">
+              <span style="font-weight: 600; color: #667eea;">🏪 Pickup at 7 Moonlight Isle</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; transition: all 0.3s ease;">
+              <input type="radio" name="delivery-option" value="delivery" onchange="updateDeliveryOption(); console.log('📍 Delivery selected - triggering update');">
+              <span style="font-weight: 600; color: #667eea;">🚚 Delivery (+$1.50)</span>
+            </label>
+          </div>
+          <div id="address-section" style="display: none; background: rgba(248, 249, 250, 0.9); padding: 20px; border-radius: 10px; margin-top: 15px;">
+            <h5 style="color: #667eea; margin-bottom: 15px;">📍 Delivery Address</h5>
+            <input id="delivery-address" type="text" placeholder="Enter your full address in Covenant Hills or Ladera Ranch" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 10px;">
+            <input id="delivery-instructions" type="text" placeholder="Delivery instructions (optional)" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem;">
+          </div>
+        </div>
+        <!-- Payment Instructions -->
+        <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px;">
+          <h3 style="margin-bottom: 15px; font-family: 'Playfair Display', serif;">💳 Payment Instructions</h3>
+          <p style="margin-bottom: 20px; opacity: 0.9;">To complete your order, please send payment via Venmo:</p>
+          <a id="venmo-payment-link" href="https://venmo.com/u/YOUR_VENMO_USERNAME" target="_blank" style="display: inline-block; background: #3D95CE; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin: 10px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(61, 149, 206, 0.4);">
+            📱 Pay with Venmo
+          </a>
+          <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 15px; margin-top: 20px;">
+            <p style="margin-bottom: 10px;"><strong>Venmo Username:</strong> @<span id="venmo-username-display">YOUR_VENMO_USERNAME</span></p>
+            <p style="margin-bottom: 10px;"><strong>Subtotal:</strong> $<span id="cart-subtotal">0.00</span></p>
+            <p style="margin-bottom: 10px;"><strong>Delivery:</strong> <span id="delivery-fee-display">Free Pickup</span></p>
+            <p style="margin-bottom: 15px; font-size: 1.2rem;"><strong>Total Amount:</strong> $<span id="venmo-total">0.00</span></p>
+            <button onclick="forceUpdateTotals()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔄 Update Totals</button>
+            <button onclick="forceRefreshCart()" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔄 Refresh Cart</button><br>
+            <button onclick="testVenmoPayment()" style="background: rgba(61,149,206,0.3); border: 1px solid rgba(61,149,206,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🧪 Test Venmo</button>
+            <button onclick="debugCartCalculations()" style="background: rgba(255,193,7,0.3); border: 1px solid rgba(255,193,7,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔍 Debug All</button><br>
+            <p style="font-size: 0.9rem; opacity: 0.8;">⚠️ Please include your order details in the Venmo note!</p>
+          </div>
+        </div>
+        <!-- Order Confirmation -->
+        <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; text-align: center;">
+          <h4 style="color: #d4691a; margin-bottom: 15px;">📋 After Payment</h4>
+          <p style="margin-bottom: 20px; color: #666;">Once you've sent the Venmo payment, click below to submit your order:</p>
+          <button class="btn btn-success" onclick="submitVenmoOrder()" id="submit-order-btn" style="font-size: 1.2rem; padding: 15px 30px;">✅ Confirm Order Placed</button>
+          <p style="margin-top: 15px; font-size: 0.9rem; color: #888;">We'll confirm receipt of payment and prepare your order!</p>
+        </div>
+      `;
+      
+      if (cartDiv) {
+        cartDiv.innerHTML = '<div class="empty-state"><p>Your cart is empty. Add some delicious items!</p></div>';
+      }
+      if (checkoutSection) {
+        checkoutSection.innerHTML = originalCheckoutHTML;
+        checkoutSection.style.display = 'none';
+      }
+      
+      // Re-initialize any event listeners if needed
+      initializeVenmoPayment();
+      
+      // Finally, update cart count and totals
+      renderCart();
     }
 
     // Load menu items with deals
@@ -2502,9 +2577,6 @@
           if (userData.role === 'admin') {
             document.getElementById('admin-tab').style.display = 'block';
             document.getElementById('employees-tab').style.display = 'block';
-            
-            // The redundant and error-causing permission check has been removed.
-            // The check above is sufficient.
           }
 
           await loadMenuItems();
