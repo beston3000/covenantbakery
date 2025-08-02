@@ -278,6 +278,109 @@ async function deleteEmployee(id, name) {
 
 // *** END: EMPLOYEE MANAGEMENT FUNCTIONS ***
 
+// *** START: PROFIT CALCULATION FUNCTIONS ***
+async function calculateAndShowProfit() {
+    if (!userData || userData.role !== 'admin') {
+        showStatus("You don't have permission to view this.", 'error');
+        return;
+    }
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const revenueEl = document.getElementById('profit-revenue');
+    const costsEl = document.getElementById('profit-costs');
+    const netEl = document.getElementById('profit-net');
+    const ordersListEl = document.getElementById('profit-orders-list');
+
+    // Reset UI
+    revenueEl.innerHTML = '<span class="loading"></span>';
+    costsEl.innerHTML = '<span class="loading"></span>';
+    netEl.innerHTML = '<span class="loading"></span>';
+    ordersListEl.innerHTML = '<div class="empty-state"><span class="loading"></span> Loading orders...</div>';
+
+    try {
+        // Fetch all menu items to get their costs
+        const menuItemsSnapshot = await firebase.firestore().collection('menuItems').get();
+        const itemCosts = {};
+        menuItemsSnapshot.forEach(doc => {
+            itemCosts[doc.id] = doc.data().cost || 0;
+        });
+
+        // Fetch completed orders for today
+        const ordersSnapshot = await firebase.firestore().collection('orders')
+            .where('status', '==', 'completed')
+            .where('createdAt', '>=', startOfDay)
+            .where('createdAt', '<=', endOfDay)
+            .get();
+
+        if (ordersSnapshot.empty) {
+            revenueEl.textContent = '$0.00';
+            costsEl.textContent = '$0.00';
+            netEl.textContent = '$0.00';
+            ordersListEl.innerHTML = '<div class="empty-state"><p>No completed orders today.</p></div>';
+            return;
+        }
+
+        let totalRevenue = 0;
+        let totalCosts = 0;
+        let ordersHTML = '';
+
+        ordersSnapshot.forEach(doc => {
+            const order = doc.data();
+            totalRevenue += order.total || 0;
+
+            let orderCost = 0;
+            if (order.items && Array.isArray(order.items)) {
+                order.items.forEach(item => {
+                    // Don't include cost for free items
+                    if (!item.isFree) {
+                        const cost = itemCosts[item.id] || 0;
+                        orderCost += cost;
+                    }
+                });
+            }
+            totalCosts += orderCost;
+            
+            // Build HTML for order breakdown
+             ordersHTML += `
+                <div class="order-summary-item">
+                    <span>Order #${order.orderId || doc.id.slice(-6)}</span>
+                    <span>Revenue: $${(order.total || 0).toFixed(2)}</span>
+                    <span>Cost: $${orderCost.toFixed(2)}</span>
+                    <span>Profit: $${((order.total || 0) - orderCost).toFixed(2)}</span>
+                </div>
+            `;
+        });
+        
+        const netProfit = totalRevenue - totalCosts;
+
+        revenueEl.textContent = `$${totalRevenue.toFixed(2)}`;
+        costsEl.textContent = `$${totalCosts.toFixed(2)}`;
+        netEl.textContent = `$${netProfit.toFixed(2)}`;
+        ordersListEl.innerHTML = ordersHTML;
+        
+        const netProfitCard = netEl.parentElement;
+        netProfitCard.classList.remove('profit-positive', 'profit-negative');
+        if (netProfit > 0) {
+            netProfitCard.classList.add('profit-positive');
+        } else if (netProfit < 0) {
+            netProfitCard.classList.add('profit-negative');
+        }
+
+    } catch (err) {
+        console.error("Error calculating profit:", err);
+        showStatus("Failed to calculate profit.", 'error');
+        revenueEl.textContent = 'Error';
+        costsEl.textContent = 'Error';
+        netEl.textContent = 'Error';
+        ordersListEl.innerHTML = '<div class="empty-state"><p>Error loading profit data.</p></div>';
+    }
+}
+// *** END: PROFIT CALCULATION FUNCTIONS ***
+
+
 function initializeVenmoPayment() {
   console.log('💳 Initializing Venmo payment system...');
   
@@ -327,10 +430,11 @@ async function submitNewItem() {
   const name = document.getElementById('item-name').value.trim();
   const description = document.getElementById('item-description').value.trim();
   const price = parseFloat(document.getElementById('item-price').value);
+  const cost = parseFloat(document.getElementById('item-cost').value);
   const stock = parseInt(document.getElementById('item-stock').value);
   const emoji = document.getElementById('item-emoji').value.trim();
 
-  if (!name || !description || isNaN(price) || isNaN(stock)) {
+  if (!name || !description || isNaN(price) || isNaN(stock) || isNaN(cost)) {
     showStatus('Please fill out all fields correctly.', 'warning');
     return;
   }
@@ -343,6 +447,7 @@ async function submitNewItem() {
       name,
       description,
       price,
+      cost: cost || 0,
       stock,
       emoji,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -371,10 +476,11 @@ async function saveMenuItem(id) {
   const name = document.getElementById(`edit-name-${id}`).value.trim();
   const description = document.getElementById(`edit-description-${id}`).value.trim();
   const price = parseFloat(document.getElementById(`edit-price-${id}`).value);
+  const cost = parseFloat(document.getElementById(`edit-cost-${id}`).value);
   const stock = parseInt(document.getElementById(`edit-stock-${id}`).value);
   const emoji = document.getElementById(`edit-emoji-${id}`).value.trim();
 
-  if (!name || !description || isNaN(price) || isNaN(stock)) {
+  if (!name || !description || isNaN(price) || isNaN(stock) || isNaN(cost)) {
     showStatus('Please fill out all fields correctly.', 'warning');
     return;
   }
@@ -387,6 +493,7 @@ async function saveMenuItem(id) {
       name,
       description,
       price,
+      cost: cost || 0,
       stock,
       emoji
     });
@@ -589,6 +696,7 @@ async function loadAdminMenuItems() {
           <input id="edit-name-${doc.id}" value="${item.name}" placeholder="Name">
           <input id="edit-description-${doc.id}" value="${item.description}" placeholder="Description">
           <input id="edit-price-${doc.id}" type="number" step="0.01" value="${item.price}" placeholder="Price">
+          <input id="edit-cost-${doc.id}" type="number" step="0.01" value="${item.cost || 0}" placeholder="Cost">
           <input id="edit-stock-${doc.id}" type="number" value="${item.stock}" placeholder="Stock">
           <input id="edit-emoji-${doc.id}" value="${item.emoji || ''}" placeholder="Emoji">
           <div style="margin-top: 10px;">
@@ -737,6 +845,8 @@ function switchTab(tabName) {
     toggleAdminView('menu');
   } else if (tabName === 'employees' && userData?.role === 'admin') {
     loadEmployees();
+  } else if (tabName === 'profit' && userData?.role === 'admin') {
+    calculateAndShowProfit();
   }
 }
 
@@ -1621,10 +1731,6 @@ function resetCartView() {
         <p style="margin-bottom: 10px;"><strong>Subtotal:</strong> $<span id="cart-subtotal">0.00</span></p>
         <p style="margin-bottom: 10px;"><strong>Delivery:</strong> <span id="delivery-fee-display">Free Pickup</span></p>
         <p style="margin-bottom: 15px; font-size: 1.2rem;"><strong>Total Amount:</strong> $<span id="venmo-total">0.00</span></p>
-        <button onclick="forceUpdateTotals()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔄 Update Totals</button>
-        <button onclick="forceRefreshCart()" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔄 Refresh Cart</button><br>
-        <button onclick="testVenmoPayment()" style="background: rgba(61,149,206,0.3); border: 1px solid rgba(61,149,206,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🧪 Test Venmo</button>
-        <button onclick="debugCartCalculations()" style="background: rgba(255,193,7,0.3); border: 1px solid rgba(255,193,7,0.5); color: white; padding: 8px 15px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; margin: 5px;">🔍 Debug All</button><br>
         <p style="font-size: 0.9rem; opacity: 0.8;">⚠️ Please include your order details in the Venmo note!</p>
       </div>
     </div>
@@ -1820,6 +1926,7 @@ async function handleAuthStateChange(user) {
       if (userData.role === 'admin') {
         document.getElementById('admin-tab').style.display = 'block';
         document.getElementById('employees-tab').style.display = 'block';
+        document.getElementById('profit-tab').style.display = 'block';
       }
 
       await loadMenuItems();
@@ -1832,6 +1939,7 @@ async function handleAuthStateChange(user) {
       document.getElementById('orders-tab').style.display = 'none';
       document.getElementById('admin-tab').style.display = 'none';
       document.getElementById('employees-tab').style.display = 'none';
+      document.getElementById('profit-tab').style.display = 'none';
       
       document.getElementById('menu').innerHTML = '<div class="empty-state"><p>Sign in to view our delicious menu items!</p></div>';
       cart = [];
