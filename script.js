@@ -1000,9 +1000,9 @@ function verifyLocation(position) {
     },
     {
       name: "Ladera Ranch", 
-      centerLat: 33.5549,
-      centerLng: -117.6419,
-      radius: 3
+      centerLat: 33.5453,
+      centerLng: -117.6489,
+      radius: 3.5
     }
   ];
 
