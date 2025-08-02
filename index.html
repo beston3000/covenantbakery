@@ -672,6 +672,110 @@
       }
     }
 
+    // *** START: MENU ITEM MANAGEMENT FUNCTIONS ***
+    function showAddItemForm() {
+      document.getElementById('add-item-form').style.display = 'block';
+    }
+
+    function hideAddItemForm() {
+      document.getElementById('add-item-form').style.display = 'none';
+    }
+
+    async function submitNewItem() {
+      const name = document.getElementById('item-name').value.trim();
+      const description = document.getElementById('item-description').value.trim();
+      const price = parseFloat(document.getElementById('item-price').value);
+      const stock = parseInt(document.getElementById('item-stock').value);
+      const emoji = document.getElementById('item-emoji').value.trim();
+
+      if (!name || !description || isNaN(price) || isNaN(stock)) {
+        showStatus('Please fill out all fields correctly.', 'warning');
+        return;
+      }
+
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        await firebase.firestore().collection('menuItems').add({
+          name,
+          description,
+          price,
+          stock,
+          emoji,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showStatus('Menu item added successfully!', 'success');
+        hideAddItemForm();
+        loadAdminMenuItems();
+        loadMenuItems(); // Refresh customer view
+      } catch (err) {
+        console.error("Error adding menu item:", err);
+        showStatus('Failed to add menu item.', 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    function editMenuItem(id) {
+      document.getElementById(`edit-form-${id}`).style.display = 'block';
+    }
+
+    function cancelEditMenuItem(id) {
+      document.getElementById(`edit-form-${id}`).style.display = 'none';
+    }
+
+    async function saveMenuItem(id) {
+      const name = document.getElementById(`edit-name-${id}`).value.trim();
+      const description = document.getElementById(`edit-description-${id}`).value.trim();
+      const price = parseFloat(document.getElementById(`edit-price-${id}`).value);
+      const stock = parseInt(document.getElementById(`edit-stock-${id}`).value);
+      const emoji = document.getElementById(`edit-emoji-${id}`).value.trim();
+
+      if (!name || !description || isNaN(price) || isNaN(stock)) {
+        showStatus('Please fill out all fields correctly.', 'warning');
+        return;
+      }
+
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        await firebase.firestore().collection('menuItems').doc(id).update({
+          name,
+          description,
+          price,
+          stock,
+          emoji
+        });
+        showStatus('Item updated successfully!', 'success');
+        cancelEditMenuItem(id);
+        loadAdminMenuItems();
+        loadMenuItems();
+      } catch (err) {
+        console.error("Error saving item:", err);
+        showStatus('Failed to save item.', 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    async function deleteMenuItem(id, name) {
+      if (!confirm(`Are you sure you want to delete ${name}?`)) {
+        return;
+      }
+      try {
+        await firebase.firestore().collection('menuItems').doc(id).delete();
+        showStatus(`${name} deleted successfully.`, 'success');
+        loadAdminMenuItems();
+        loadMenuItems();
+      } catch (err) {
+        console.error("Error deleting item:", err);
+        showStatus(`Failed to delete ${name}.`, 'error');
+      }
+    }
+    // *** END: MENU ITEM MANAGEMENT FUNCTIONS ***
+
     // Admin functions
     async function loadAdminMenuItems() {
       if (!userData || userData.role !== 'admin') return;
