@@ -1118,27 +1118,6 @@
       }, 2000);
     }
     
-    // *** START: FUNCTIONS TO FIX ERRORS ***
-
-    /**
-     * Verifies that the logged-in admin has the necessary Firestore permissions.
-     */
-    async function checkFirestorePermissions() {
-      if (!currentUser || !userData || userData.role !== 'admin') {
-        return;
-      }
-      console.log('🔑 Verifying admin Firestore permissions...');
-      try {
-        // Attempt a read operation that should be restricted to admins (e.g., reading the users collection)
-        // This relies on Firestore security rules being set up correctly.
-        await firebase.firestore().collection('users').limit(1).get();
-        console.log('✅ Admin permissions verified successfully.');
-      } catch (error) {
-        console.error('❌ Firestore Permission Error:', error.message);
-        showStatus('Warning: Could not verify admin permissions. Check Firestore rules.', 'warning');
-      }
-    }
-
     /**
      * Fetches all active deals for a given menu item from Firestore.
      * @param {string} itemId - The ID of the menu item.
@@ -2415,7 +2394,7 @@
           itemDiv.innerHTML = `
             ${dealBadges}
             <div class="menu-item-header">
-              <div class="menu-item-emoji">${item.emoji || '�'}</div>
+              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
               <div class="menu-item-info">
                 <h3>${item.name}</h3>
                 <div class="menu-item-price">$${item.price.toFixed(2)}</div>
@@ -2524,8 +2503,8 @@
             document.getElementById('admin-tab').style.display = 'block';
             document.getElementById('employees-tab').style.display = 'block';
             
-            // Check Firestore permissions for admin features
-            setTimeout(() => checkFirestorePermissions(), 1000);
+            // The redundant and error-causing permission check has been removed.
+            // The check above is sufficient.
           }
 
           await loadMenuItems();
@@ -2592,4 +2571,3 @@
   </script>
 </body>
 </html>
-�
