@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Covenant Hills Bakery - v2.9</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -793,6 +794,7 @@
           </div>
           <div id="checkout-section" style="display: none; margin-top: 30px;">
             
+            <!-- Delivery Options -->
             <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(0, 0, 0, 0.1);">
               <h4 style="color: #d4691a; margin-bottom: 20px; text-align: center;">📍 Delivery Options</h4>
               
@@ -808,6 +810,7 @@
                 </label>
               </div>
               
+              <!-- Address Input (hidden by default) -->
               <div id="address-section" style="display: none; background: rgba(248, 249, 250, 0.9); padding: 20px; border-radius: 10px; margin-top: 15px;">
                 <h5 style="color: #667eea; margin-bottom: 15px;">📍 Delivery Address</h5>
                 <input id="delivery-address" type="text" placeholder="Enter your full address in Covenant Hills or Ladera Ranch" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 10px;">
@@ -815,10 +818,12 @@
               </div>
             </div>
 
+            <!-- Payment Instructions -->
             <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px;">
               <h3 style="margin-bottom: 15px; font-family: 'Playfair Display', serif;">💳 Payment Instructions</h3>
               <p style="margin-bottom: 20px; opacity: 0.9;">To complete your order, please send payment via Venmo:</p>
               
+              <!-- Venmo Payment Button -->
               <a id="venmo-payment-link" href="https://venmo.com/u/YOUR_VENMO_USERNAME" target="_blank" style="display: inline-block; background: #3D95CE; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin: 10px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(61, 149, 206, 0.4);">
                 📱 Pay with Venmo
               </a>
@@ -836,6 +841,7 @@
               </div>
             </div>
             
+            <!-- Order Confirmation -->
             <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; text-align: center;">
               <h4 style="color: #d4691a; margin-bottom: 15px;">📋 After Payment</h4>
               <p style="margin-bottom: 20px; color: #666;">Once you've sent the Venmo payment, click below to submit your order:</p>
@@ -855,6 +861,7 @@
         <div id="admin-panel" class="tab-panel">
           <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">👑 Admin Dashboard</h2>
           
+          <!-- Admin Controls -->
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
             <h3 style="margin-bottom: 20px;">Admin Controls</h3>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
@@ -864,6 +871,7 @@
               <button class="btn btn-secondary" onclick="toggleAdminView('deals')">🏷️ Manage Deals</button>
             </div>
             
+            <!-- Add Item Form -->
             <div id="add-item-form" style="display:none; background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
               <h4 style="margin-bottom: 15px;">Add New Bakery Item</h4>
               <input id="item-name" placeholder="Item Name (e.g., Chocolate Croissant)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
@@ -877,6 +885,7 @@
             </div>
           </div>
           
+          <!-- Menu Management Section -->
           <div id="admin-menu-section">
             <h3 style="color: #d4691a; margin-bottom: 15px;">📦 Menu Management</h3>
             <div id="admin-menu-items" class="menu-grid">
@@ -884,6 +893,7 @@
             </div>
           </div>
           
+          <!-- Orders Management Section -->
           <div id="admin-orders-section" style="display: none;">
             <h3 style="color: #d4691a; margin-bottom: 15px;">📋 Order Management</h3>
             <div style="margin-bottom: 20px;">
@@ -898,15 +908,18 @@
             </div>
           </div>
 
+          <!-- Deals Management Section -->
           <div id="admin-deals-section" style="display: none;">
             <h3 style="color: #d4691a; margin-bottom: 15px;">🏷️ Deal Management</h3>
             
+            <!-- Add Deal Controls -->
             <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; margin-bottom: 20px;">
               <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
                 <button class="btn btn-success" onclick="showAddDealForm()">➕ Add New Deal</button>
                 <button class="btn btn-secondary" onclick="loadDeals()">🔄 Refresh Deals</button>
               </div>
               
+              <!-- Add Deal Form -->
               <div id="add-deal-form" style="display: none; background: rgba(248, 249, 250, 0.9); padding: 20px; border-radius: 10px; margin-top: 20px;">
                 <h4 style="color: #d4691a; margin-bottom: 15px;">Create New Deal</h4>
                 
@@ -933,11 +946,13 @@
                   </select>
                 </div>
                 
+                <!-- Percentage Discount Fields -->
                 <div id="percentage-fields" style="margin-bottom: 15px;">
                   <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Discount Percentage:</label>
                   <input id="deal-percentage" type="number" min="1" max="99" placeholder="e.g., 25" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
                 </div>
                 
+                <!-- Buy X Get Y Fields -->
                 <div id="buy-get-fields" style="display: none; margin-bottom: 15px;">
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div>
@@ -951,6 +966,7 @@
                   </div>
                 </div>
                 
+                <!-- Fixed Discount Fields -->
                 <div id="fixed-discount-fields" style="display: none; margin-bottom: 15px;">
                   <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Discount Amount ($):</label>
                   <input id="deal-fixed-amount" type="number" step="0.01" min="0.01" placeholder="e.g., 2.50" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
@@ -968,6 +984,7 @@
               </div>
             </div>
             
+            <!-- Active Deals List -->
             <div id="deals-list">
               <div class="empty-state"><p>Loading deals...</p></div>
             </div>
@@ -977,6 +994,7 @@
         <div id="employees-panel" class="tab-panel">
           <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">👥 Employee Management</h2>
           
+          <!-- Employee Controls -->
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
             <h3 style="margin-bottom: 20px;">Employee Controls</h3>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
@@ -984,6 +1002,7 @@
               <button class="btn btn-secondary" onclick="loadEmployees()">🔄 Refresh List</button>
             </div>
             
+            <!-- Add Employee Form -->
             <div id="add-employee-form" style="display:none; background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
               <h4 style="margin-bottom: 15px;">Add New Employee</h4>
               <input id="employee-name" placeholder="Employee Name (e.g., John Smith)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
@@ -998,6 +1017,7 @@
             </div>
           </div>
           
+          <!-- Employee List -->
           <div id="employees-section">
             <h3 style="color: #d4691a; margin-bottom: 15px;">👥 Current Employees</h3>
             <div id="employees-list" class="menu-grid">
@@ -1098,7 +1118,7 @@
       }, 2000);
     }
     
-    // *** START: ADDED FUNCTIONS TO FIX ERRORS ***
+    // *** START: FUNCTIONS TO FIX ERRORS ***
 
     /**
      * Verifies that the logged-in admin has the necessary Firestore permissions.
@@ -1170,8 +1190,147 @@
       }
       return newItem;
     }
+    
+    // *** START: EMPLOYEE MANAGEMENT FUNCTIONS ***
 
-    // *** END: ADDED FUNCTIONS TO FIX ERRORS ***
+    /**
+     * Loads and displays the list of employees from Firestore.
+     * Requires admin privileges.
+     */
+    async function loadEmployees() {
+      if (!userData || userData.role !== 'admin') {
+        showStatus("You don't have permission to view this.", 'error');
+        return;
+      }
+      
+      const employeesDiv = document.getElementById('employees-list');
+      employeesDiv.innerHTML = '<div class="empty-state"><span class="loading"></span> Loading employees...</div>';
+      
+      try {
+        const snapshot = await firebase.firestore().collection('employees').orderBy('name').get();
+        
+        if (snapshot.empty) {
+          employeesDiv.innerHTML = '<div class="empty-state"><p>No employees found. Add one to get started!</p></div>';
+          return;
+        }
+
+        employeesDiv.innerHTML = '';
+        snapshot.forEach(doc => {
+          const employee = doc.data();
+          const employeeDiv = document.createElement('div');
+          employeeDiv.className = 'admin-menu-item'; // Re-using style for consistency
+          
+          let detailsHTML = `<p><strong>Role:</strong> ${employee.role}</p>`;
+          if (employee.email) detailsHTML += `<p><strong>Email:</strong> ${employee.email}</p>`;
+          if (employee.phone) detailsHTML += `<p><strong>Phone:</strong> ${employee.phone}</p>`;
+          if (employee.hourlyRate) detailsHTML += `<p><strong>Rate:</strong> $${parseFloat(employee.hourlyRate).toFixed(2)}/hr</p>`;
+
+          employeeDiv.innerHTML = `
+            <div class="menu-item-header">
+              <div class="menu-item-emoji">👤</div>
+              <div class="menu-item-info">
+                <h3>${employee.name}</h3>
+              </div>
+            </div>
+            <div class="menu-item-description">${detailsHTML}</div>
+            <div class="item-controls">
+              <button class="btn btn-danger" onclick="deleteEmployee('${doc.id}', '${employee.name}')">🗑️ Delete</button>
+            </div>
+          `;
+          employeesDiv.appendChild(employeeDiv);
+        });
+      } catch (err) {
+        console.error("Error loading employees:", err);
+        showStatus("Failed to load employee list.", 'error');
+        employeesDiv.innerHTML = '<div class="empty-state"><p>Error loading employees. Check console.</p></div>';
+      }
+    }
+
+    /**
+     * Shows the form for adding a new employee.
+     */
+    function showAddEmployeeForm() {
+      document.getElementById('add-employee-form').style.display = 'block';
+    }
+
+    /**
+     * Hides the form for adding a new employee.
+     */
+    function hideAddEmployeeForm() {
+      document.getElementById('add-employee-form').style.display = 'none';
+    }
+
+    /**
+     * Submits the new employee data to Firestore.
+     */
+    async function submitNewEmployee() {
+      const name = document.getElementById('employee-name').value.trim();
+      const role = document.getElementById('employee-role').value.trim();
+      
+      if (!name || !role) {
+        showStatus("Employee Name and Role are required.", 'warning');
+        return;
+      }
+      
+      const employeeData = {
+        name,
+        role,
+        email: document.getElementById('employee-email').value.trim() || null,
+        phone: document.getElementById('employee-phone').value.trim() || null,
+        hourlyRate: parseFloat(document.getElementById('employee-hourly-rate').value) || null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        await firebase.firestore().collection('employees').add(employeeData);
+        showStatus('Employee added successfully!', 'success');
+        
+        // Clear form
+        document.getElementById('employee-name').value = '';
+        document.getElementById('employee-role').value = '';
+        document.getElementById('employee-email').value = '';
+        document.getElementById('employee-phone').value = '';
+        document.getElementById('employee-hourly-rate').value = '';
+        
+        hideAddEmployeeForm();
+        loadEmployees(); // Refresh the list
+      } catch (err) {
+        console.error("Error adding employee:", err);
+        showStatus("Failed to add employee.", 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    /**
+     * Deletes an employee from Firestore.
+     * @param {string} id - The document ID of the employee to delete.
+     * @param {string} name - The name of the employee for the confirmation message.
+     */
+    async function deleteEmployee(id, name) {
+      if (!confirm(`Are you sure you want to delete employee: ${name}?`)) {
+        return;
+      }
+
+      const btn = event.target;
+      const stopLoading = showLoading(btn);
+
+      try {
+        await firebase.firestore().collection('employees').doc(id).delete();
+        showStatus('Employee deleted successfully.', 'success');
+        loadEmployees(); // Refresh the list
+      } catch (err) {
+        console.error("Error deleting employee:", err);
+        showStatus('Failed to delete employee.', 'error');
+      } finally {
+        stopLoading();
+      }
+    }
+
+    // *** END: EMPLOYEE MANAGEMENT FUNCTIONS ***
 
     function initializeVenmoPayment() {
       console.log('💳 Initializing Venmo payment system...');
@@ -2256,7 +2415,7 @@
           itemDiv.innerHTML = `
             ${dealBadges}
             <div class="menu-item-header">
-              <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
+              <div class="menu-item-emoji">${item.emoji || '�'}</div>
               <div class="menu-item-info">
                 <h3>${item.name}</h3>
                 <div class="menu-item-price">$${item.price.toFixed(2)}</div>
@@ -2433,3 +2592,4 @@
   </script>
 </body>
 </html>
+�
