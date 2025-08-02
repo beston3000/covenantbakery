@@ -513,6 +513,70 @@ label:hover {
   transform: translateY(-2px);
 }
 
+.admin-section {
+    margin-top: 20px;
+}
+
+.profit-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.summary-card {
+  background: #f9fafb;
+  padding: 25px;
+  border-radius: 15px;
+  text-align: center;
+  border: 1px solid #e4e4e7;
+}
+
+.summary-card h4 {
+  color: #71717a;
+  font-size: 1.1rem;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+.summary-card p {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #18181b;
+}
+
+.summary-card.net-profit {
+    background: #18181b;
+}
+
+.summary-card.net-profit h4 {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.summary-card.net-profit p {
+    color: white;
+}
+
+.summary-card.profit-positive .net-profit p {
+    color: #22c55e !important;
+}
+
+.summary-card.profit-negative .net-profit p {
+    color: #ef4444 !important;
+}
+
+.order-summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px;
+    background: #ffffff;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #e4e4e7;
+    font-weight: 500;
+}
+
+
 @media (max-width: 768px) {
   .header h1 { font-size: 2.5rem; }
   .input-group { flex-direction: column; }
@@ -523,9 +587,8 @@ label:hover {
 }
 
 /* Black and White Theme Overrides */
-#admin-panel > div[style*="linear-gradient"], 
-#employees-panel > div[style*="linear-gradient"], 
-#checkout-section > div[style*="linear-gradient"] {
+#admin-panel > div[style*="background"], 
+#admin-employees-section > div[style*="background"] {
   background: #27272a !important;
 }
 
