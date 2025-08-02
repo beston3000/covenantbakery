@@ -184,7 +184,7 @@ input:focus {
 
 .google-icon { 
   background: white; 
-  color: #4285f4; 
+  color: #71717a; 
   padding: 8px; 
   border-radius: 8px; 
   font-weight: bold;
@@ -521,7 +521,7 @@ input[type="radio"]:checked + span {
 
 label:has(input[type="radio"]:checked) {
   background: #e4e4e7 !important;
-  border: 2px solid #a1a1aa !important;
+  border: 2px solid #18181b !important;
 }
 
 label:hover {
@@ -536,4 +536,28 @@ label:hover {
   .menu-grid { grid-template-columns: 1fr; }
   .tab-button { padding: 20px 15px; font-size: 1rem; }
   .container { padding: 15px; }
+}
+
+/* Black and White Theme Overrides */
+#admin-panel > div[style*="linear-gradient"], 
+#employees-panel > div[style*="linear-gradient"], 
+#checkout-section > div[style*="linear-gradient"] {
+  background: #27272a !important;
+}
+
+#venmo-payment-link {
+  background: #18181b !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2) !important;
+}
+
+#venmo-payment-link:hover {
+  background: #3f3f46 !important;
+}
+
+#checkout-section label[style*="background"] {
+  background: #f0f0f0 !important;
+}
+
+#checkout-section label span[style*="color"] {
+  color: #18181b !important;
 }
