@@ -708,7 +708,7 @@
         showStatus('Menu item added successfully!', 'success');
         hideAddItemForm();
         loadAdminMenuItems();
-        loadMenuItems(); // Refresh customer view
+        refreshMenu(); // Refresh customer view
       } catch (err) {
         console.error("Error adding menu item:", err);
         showStatus('Failed to add menu item.', 'error');
@@ -751,7 +751,7 @@
         showStatus('Item updated successfully!', 'success');
         cancelEditMenuItem(id);
         loadAdminMenuItems();
-        loadMenuItems();
+        refreshMenu();
       } catch (err) {
         console.error("Error saving item:", err);
         showStatus('Failed to save item.', 'error');
@@ -768,7 +768,7 @@
         await firebase.firestore().collection('menuItems').doc(id).delete();
         showStatus(`${name} deleted successfully.`, 'success');
         loadAdminMenuItems();
-        loadMenuItems();
+        refreshMenu();
       } catch (err) {
         console.error("Error deleting item:", err);
         showStatus(`Failed to delete ${name}.`, 'error');
@@ -946,7 +946,9 @@
       document.getElementById(tabName + '-tab').classList.add('active');
       document.getElementById(tabName + '-panel').classList.add('active');
       
-      if (tabName === 'cart') {
+      if (tabName === 'menu') {
+        refreshMenu();
+      } else if (tabName === 'cart') {
         console.log('🛒 Switched to cart tab - refreshing totals');
         setTimeout(() => {
           forceUpdateTotals();
@@ -1728,7 +1730,7 @@
       } catch (err) {
         console.error("Order submission error:", err);
         showStatus(`Failed to submit order: ${err.message}`, 'error');
-        loadMenuItems(); // Refresh menu to show updated stock
+        refreshMenu(); // Refresh menu to show updated stock
       } finally {
         stopLoading();
       }
@@ -1876,7 +1878,7 @@
     }
 
     // Load menu items with deals
-    async function loadMenuItems() {
+    async function refreshMenu() {
       try {
         const snapshot = await firebase.firestore().collection('menuItems').where('stock', '>', 0).get();
         const menuDiv = document.getElementById('menu');
@@ -1947,6 +1949,10 @@
         console.error("Error loading menu items:", err);
         showStatus("Failed to load menu items.", 'error');
       }
+    }
+
+    async function loadMenuItems() {
+        await refreshMenu();
     }
 
     async function loadUserOrders() {
