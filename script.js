@@ -418,6 +418,139 @@ async function deleteMenuItem(id, name) {
 }
 // *** END: MENU ITEM MANAGEMENT FUNCTIONS ***
 
+// *** START: DEAL MANAGEMENT FUNCTIONS ***
+function showAddDealForm() {
+  document.getElementById('add-deal-form').style.display = 'block';
+}
+
+function hideAddDealForm() {
+  document.getElementById('add-deal-form').style.display = 'none';
+}
+
+async function submitNewDeal() {
+  const name = document.getElementById('deal-name').value.trim();
+  const type = document.getElementById('deal-type').value;
+  const menuItemId = document.getElementById('deal-menu-item').value;
+  const description = document.getElementById('deal-description').value.trim();
+
+  if (!name || !menuItemId) {
+    showStatus('Deal Name and Menu Item are required.', 'warning');
+    return;
+  }
+
+  let dealData = {
+    name,
+    type,
+    menuItemId,
+    description,
+    isActive: true,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if (type === 'percentage') {
+    dealData.percentage = parseInt(document.getElementById('deal-percentage').value);
+    if (isNaN(dealData.percentage)) {
+      showStatus('Please enter a valid percentage.', 'warning');
+      return;
+    }
+  } else if (type === 'buy-get') {
+    dealData.buyQuantity = parseInt(document.getElementById('deal-buy-quantity').value);
+    dealData.freeQuantity = parseInt(document.getElementById('deal-free-quantity').value);
+    if (isNaN(dealData.buyQuantity) || isNaN(dealData.freeQuantity)) {
+      showStatus('Please enter valid quantities for the deal.', 'warning');
+      return;
+    }
+  } else if (type === 'fixed-discount') {
+    dealData.fixedAmount = parseFloat(document.getElementById('deal-fixed-amount').value);
+    if (isNaN(dealData.fixedAmount)) {
+      showStatus('Please enter a valid discount amount.', 'warning');
+      return;
+    }
+  }
+
+  const btn = event.target;
+  const stopLoading = showLoading(btn);
+
+  try {
+    await firebase.firestore().collection('deals').add(dealData);
+    showStatus('Deal created successfully!', 'success');
+    hideAddDealForm();
+    loadDeals();
+    refreshMenu();
+  } catch (err) {
+    console.error("Error creating deal:", err);
+    showStatus('Failed to create deal.', 'error');
+  } finally {
+    stopLoading();
+  }
+}
+
+async function loadDeals() {
+  if (!userData || userData.role !== 'admin') return;
+
+  const dealsDiv = document.getElementById('deals-list');
+  dealsDiv.innerHTML = '<div class="empty-state"><span class="loading"></span> Loading deals...</div>';
+
+  try {
+    const snapshot = await firebase.firestore().collection('deals').orderBy('createdAt', 'desc').get();
+    if (snapshot.empty) {
+      dealsDiv.innerHTML = '<div class="empty-state"><p>No deals found.</p></div>';
+      return;
+    }
+
+    dealsDiv.innerHTML = '';
+    snapshot.forEach(doc => {
+      const deal = doc.data();
+      const dealDiv = document.createElement('div');
+      dealDiv.className = 'admin-menu-item';
+      dealDiv.innerHTML = `
+        <h3>${deal.name}</h3>
+        <p>${deal.description || ''}</p>
+        <div class="item-controls">
+          <button class="btn btn-danger" onclick="deleteDeal('${doc.id}', '${deal.name}')">🗑️ Delete</button>
+        </div>
+      `;
+      dealsDiv.appendChild(dealDiv);
+    });
+  } catch (err) {
+    console.error("Error loading deals:", err);
+    showStatus("Failed to load deals.", 'error');
+  }
+}
+
+async function deleteDeal(id, name) {
+  if (!confirm(`Are you sure you want to delete the deal: ${name}?`)) {
+    return;
+  }
+  try {
+    await firebase.firestore().collection('deals').doc(id).delete();
+    showStatus('Deal deleted successfully.', 'success');
+    loadDeals();
+    refreshMenu();
+  } catch (err) {
+    console.error("Error deleting deal:", err);
+    showStatus('Failed to delete deal.', 'error');
+  }
+}
+
+async function loadMenuItemsForDeals() {
+  const select = document.getElementById('deal-menu-item');
+  select.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const snapshot = await firebase.firestore().collection('menuItems').orderBy('name').get();
+    select.innerHTML = '<option value="">Select an item</option>';
+    snapshot.forEach(doc => {
+      const item = doc.data();
+      select.innerHTML += `<option value="${doc.id}">${item.name}</option>`;
+    });
+  } catch (err) {
+    console.error("Error loading menu items for deals:", err);
+    select.innerHTML = '<option value="">Error loading items</option>';
+  }
+}
+// *** END: DEAL MANAGEMENT FUNCTIONS ***
+
+
 // Admin functions
 async function loadAdminMenuItems() {
   if (!userData || userData.role !== 'admin') return;
