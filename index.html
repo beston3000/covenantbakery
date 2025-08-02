@@ -877,6 +877,7 @@
               <input id="item-name" placeholder="Item Name (e.g., Chocolate Croissant)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
               <input id="item-description" placeholder="Description" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
               <input id="item-price" type="number" step="0.01" placeholder="Price (e.g., 4.99)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
+              <input id="item-stock" type="number" placeholder="Stock Quantity (e.g., 10)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
               <input id="item-emoji" placeholder="Emoji (e.g., 🥐)" style="margin-bottom: 15px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
               <div>
                 <button class="btn btn-success" onclick="submitNewItem()">Add Item</button>
@@ -1364,10 +1365,10 @@
         snapshot.forEach(doc => {
           const item = doc.data();
           const itemDiv = document.createElement('div');
-          itemDiv.className = `admin-menu-item ${!item.inStock ? 'out-of-stock' : ''}`;
+          itemDiv.className = `admin-menu-item ${item.stock <= 0 ? 'out-of-stock' : ''}`;
           itemDiv.innerHTML = `
-            <div class="stock-indicator ${item.inStock ? 'in-stock' : 'out-of-stock'}">
-              ${item.inStock ? 'In Stock' : 'Out of Stock'}
+            <div class="stock-indicator ${item.stock > 0 ? 'in-stock' : 'out-of-stock'}">
+              ${item.stock > 0 ? `${item.stock} in Stock` : 'Out of Stock'}
             </div>
             <div class="menu-item-header">
               <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
@@ -1379,15 +1380,13 @@
             <div class="menu-item-description">${item.description}</div>
             <div class="item-controls">
               <button class="btn btn-primary" onclick="editMenuItem('${doc.id}')">✏️ Edit</button>
-              <button class="btn ${item.inStock ? 'btn-danger' : 'btn-success'}" onclick="toggleItemStock('${doc.id}', ${!item.inStock})">
-                ${item.inStock ? '❌ Out of Stock' : '✅ In Stock'}
-              </button>
               <button class="btn btn-danger" onclick="deleteMenuItem('${doc.id}', '${item.name}')">🗑️ Delete</button>
             </div>
             <div id="edit-form-${doc.id}" class="edit-form" style="display: none;">
               <input id="edit-name-${doc.id}" value="${item.name}" placeholder="Name">
               <input id="edit-description-${doc.id}" value="${item.description}" placeholder="Description">
               <input id="edit-price-${doc.id}" type="number" step="0.01" value="${item.price}" placeholder="Price">
+              <input id="edit-stock-${doc.id}" type="number" value="${item.stock}" placeholder="Stock">
               <input id="edit-emoji-${doc.id}" value="${item.emoji || ''}" placeholder="Emoji">
               <div style="margin-top: 10px;">
                 <button class="btn btn-success" onclick="saveMenuItem('${doc.id}')">💾 Save</button>
@@ -2145,9 +2144,15 @@
     }
 
     // REVISED: addToCart and removeFromCart now use the new updateFreeItemsInCart function
-    async function addToCart(id, name, price, emoji) {
+    async function addToCart(id, name, price, emoji, stock) {
         if (!requireLocationVerification()) return;
         
+        const itemsInCart = cart.filter(item => item.id === id).length;
+        if (itemsInCart >= stock) {
+          showStatus(`No more stock for ${name}!`, 'error');
+          return;
+        }
+
         try {
             const deals = await getActiveDealsForItem(id);
             let finalItem = { id, name, price: parseFloat(price), emoji, isFree: false };
@@ -2223,51 +2228,79 @@
       const stopLoading = showLoading(submitBtn);
 
       try {
-        // Generate order ID first
-        const orderId = 'ORDER-' + Date.now().toString().slice(-6);
-        const subtotal = cart.reduce((sum, item) => sum + (item.isFree ? 0 : item.price), 0);
-        const total = subtotal + deliveryDetails.fee;
-        
-        // Update Venmo link with the specific order number
-        updateVenmoLink(orderId);
-        
-        await firebase.firestore().collection('orders').add({
-          userId: currentUser.uid,
-          userEmail: userData.email,
-          items: cart,
-          subtotal: subtotal,
-          deliveryDetails: deliveryDetails,
-          total: total,
-          status: 'pending-payment',
-          paymentMethod: 'venmo',
-          orderId: orderId,
-          customerInstructions: 'Payment via Venmo - pending verification',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        const db = firebase.firestore();
+        await db.runTransaction(async (transaction) => {
+          const orderId = 'ORDER-' + Date.now().toString().slice(-6);
+          const subtotal = cart.reduce((sum, item) => sum + (item.isFree ? 0 : item.price), 0);
+          const total = subtotal + deliveryDetails.fee;
+          
+          const itemQuantities = cart.reduce((acc, item) => {
+            if (!item.isFree) {
+              acc[item.id] = (acc[item.id] || 0) + 1;
+            }
+            return acc;
+          }, {});
+
+          const itemRefs = {};
+          for (const itemId in itemQuantities) {
+            itemRefs[itemId] = db.collection('menuItems').doc(itemId);
+          }
+
+          const itemDocs = await Promise.all(Object.values(itemRefs).map(ref => transaction.get(ref)));
+
+          for (const itemDoc of itemDocs) {
+            const currentStock = itemDoc.data().stock;
+            const quantityOrdered = itemQuantities[itemDoc.id];
+            if (currentStock < quantityOrdered) {
+              throw new Error(`Not enough stock for ${itemDoc.data().name}.`);
+            }
+          }
+
+          for (const itemId in itemQuantities) {
+            const newStock = firebase.firestore.FieldValue.increment(-itemQuantities[itemId]);
+            transaction.update(itemRefs[itemId], { stock: newStock });
+          }
+
+          const orderRef = db.collection('orders').doc();
+          transaction.set(orderRef, {
+            userId: currentUser.uid,
+            userEmail: userData.email,
+            items: cart,
+            subtotal: subtotal,
+            deliveryDetails: deliveryDetails,
+            total: total,
+            status: 'pending-payment',
+            paymentMethod: 'venmo',
+            orderId: orderId,
+            customerInstructions: 'Payment via Venmo - pending verification',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          // Only if transaction succeeds, show success UI
+          cart = [];
+          renderCart();
+          
+          const deliveryText = deliveryDetails.type === 'delivery' 
+            ? `📍 Delivery to: ${deliveryDetails.address}` 
+            : `🏪 Pickup at: ${deliveryDetails.location}`;
+          
+          showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
+          
+          document.getElementById('checkout-section').innerHTML = `
+            <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
+              <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
+              <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
+              <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> $${total.toFixed(2)}</p>
+              <p style="margin-bottom: 20px;">${deliveryText}</p>
+              <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
+              <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
+            </div>
+          `;
         });
-        
-        cart = [];
-        renderCart();
-        
-        const deliveryText = deliveryDetails.type === 'delivery' 
-          ? `📍 Delivery to: ${deliveryDetails.address}` 
-          : `🏪 Pickup at: ${deliveryDetails.location}`;
-        
-        showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
-        
-        document.getElementById('checkout-section').innerHTML = `
-          <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 20px; text-align: center;">
-            <h3 style="margin-bottom: 15px;">✅ Order Submitted Successfully!</h3>
-            <p style="margin-bottom: 10px;"><strong>Order ID:</strong> ${orderId}</p>
-            <p style="margin-bottom: 10px;"><strong>Total Paid:</strong> $${total.toFixed(2)}</p>
-            <p style="margin-bottom: 20px;">${deliveryText}</p>
-            <p style="margin-bottom: 20px;">Thank you! We'll confirm your Venmo payment and start preparing your delicious items.</p>
-            <p style="font-size: 0.9rem; opacity: 0.9;">You'll receive an update once we verify payment.</p>
-          </div>
-        `;
-        
       } catch (err) {
         console.error("Order submission error:", err);
-        showStatus("Failed to submit order. Please try again.", 'error');
+        showStatus(`Failed to submit order: ${err.message}`, 'error');
+        loadMenuItems(); // Refresh menu to show updated stock
       } finally {
         stopLoading();
       }
@@ -2417,7 +2450,7 @@
     // Load menu items with deals
     async function loadMenuItems() {
       try {
-        const snapshot = await firebase.firestore().collection('menuItems').where('inStock', '==', true).get();
+        const snapshot = await firebase.firestore().collection('menuItems').where('stock', '>', 0).get();
         const menuDiv = document.getElementById('menu');
         
         if (snapshot.empty) {
@@ -2468,6 +2501,7 @@
           
           itemDiv.innerHTML = `
             ${dealBadges}
+            <div class="stock-indicator in-stock">${item.stock} in stock</div>
             <div class="menu-item-header">
               <div class="menu-item-emoji">${item.emoji || '🍰'}</div>
               <div class="menu-item-info">
@@ -2477,7 +2511,7 @@
             </div>
             <div class="menu-item-description">${item.description}</div>
             ${dealDescriptions}
-            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '🍰'}')">Add to Cart</button>
+            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '🍰'}', ${item.stock})">Add to Cart</button>
           `;
           menuDiv.appendChild(itemDiv);
         });
