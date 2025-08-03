@@ -523,6 +523,7 @@ input:focus {
 .delivery-option-label span {
   font-weight: 600;
   color: #18181b;
+  white-space: nowrap;
 }
 
 .delivery-option-label:hover {
