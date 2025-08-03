@@ -576,6 +576,34 @@ label:hover {
     font-weight: 500;
 }
 
+.support-contact {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 1px solid #e4e4e7;
+  text-align: center;
+  color: #71717a;
+}
+
+.support-contact h4 {
+  font-size: 1.2rem;
+  color: #18181b;
+  margin-bottom: 10px;
+}
+
+.support-contact p {
+  margin-bottom: 15px;
+}
+
+.support-contact a {
+  color: #18181b;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.support-contact a:hover {
+  text-decoration: underline;
+}
+
 
 @media (max-width: 768px) {
   .header h1 { font-size: 2.5rem; }
