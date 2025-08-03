@@ -516,13 +516,23 @@ input:focus {
   background: #f0f0f0;
   border-radius: 10px;
   transition: all 0.3s ease;
-  justify-content: flex-start;
   border: 2px solid transparent;
   flex-grow: 1;
   flex-basis: 220px;
 }
 
-.delivery-option-label span {
+.delivery-option-label:has(input[type="radio"]:checked) {
+  background: #e4e4e7;
+  border: 2px solid #18181b;
+}
+
+.delivery-option-label .delivery-option-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.delivery-option-content span {
   font-weight: 600;
   color: #18181b;
   white-space: nowrap;
@@ -531,11 +541,6 @@ input:focus {
 .delivery-option-label:hover {
   background: #f4f4f5;
   transform: translateY(-2px);
-}
-
-.delivery-option-label:has(input[type="radio"]:checked) {
-  background: #e4e4e7;
-  border: 2px solid #18181b;
 }
 
 .admin-section {
