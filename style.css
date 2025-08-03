@@ -518,6 +518,8 @@ input:focus {
   transition: all 0.3s ease;
   justify-content: flex-start;
   border: 2px solid transparent;
+  flex-grow: 1;
+  flex-basis: 220px;
 }
 
 .delivery-option-label span {
