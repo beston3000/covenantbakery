@@ -442,8 +442,8 @@ input:focus {
 
 .deal-badge {
   position: absolute;
-  top: -5px;
-  left: -5px;
+  top: 15px;
+  left: 15px;
   background: #18181b;
   color: white;
   padding: 8px 12px;
