@@ -1449,32 +1449,14 @@ function verifyLocation(position) {
   if (isInServiceArea) {
     locationVerified = true;
     showLocationSuccess(nearestArea);
-    setTimeout(() => {
-        hideLocationVerification();
-        document.getElementById('notification-permission').style.display = 'flex';
-    }, 500);
+    hideLocationVerification();
+    showMainContent();
+    updateDeliveryOptionsUI();
   } else {
     verifiedLocationArea = null;
     showLocationDenied();
   }
 }
-
-function requestNotificationPermission(shouldRequest) {
-  document.getElementById('notification-permission').style.display = 'none';
-  if (shouldRequest) {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        showStatus('Notifications enabled!', 'success');
-      } else {
-        showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
-      }
-      showMainContent();
-    });
-  } else {
-    showMainContent();
-  }
-}
-
 
 function updateDeliveryOptionsUI() {
     const deliveryLabel = document.querySelector('label:has(input[value="delivery"])');
@@ -1809,6 +1791,15 @@ async function submitVenmoOrder() {
       fee: 0,
       pickupTime: closestPickupTime ? `${formatDate(closestPickupTime.date)} at ${closestPickupTime.time}` : 'To be confirmed'
     };
+  }
+
+  if (deliveryDetails.type === 'pickup' && Notification.permission !== 'granted') {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+        showStatus('Notifications enabled for pickup reminders!', 'success');
+    } else {
+        showStatus('You won\'t receive pickup reminders. You can enable notifications in your browser settings.', 'warning');
+    }
   }
 
   const submitBtn = document.getElementById('submit-order-btn');
