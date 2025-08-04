@@ -477,8 +477,7 @@ async function deletePickupTime(id) {
   }
 }
 
-function schedulePickupNotification(orderId, pickupTime) {
-  const pickupDateTime = new Date(pickupTime);
+function schedulePickupNotification(orderId, pickupDateTime) {
   const notificationTime = new Date(pickupDateTime.getTime() - 10 * 60 * 1000); // 10 minutes before
   const now = new Date();
 
@@ -1665,6 +1664,7 @@ async function submitVenmoOrder() {
 
   const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
   let deliveryDetails = {};
+  let closestPickupTime = null;
   
   if (selectedOption === 'delivery') {
     const address = document.getElementById('delivery-address')?.value?.trim();
@@ -1684,17 +1684,38 @@ async function submitVenmoOrder() {
     // Find the closest available pickup time
     const now = new Date();
     const pickupTimesSnapshot = await firebase.firestore().collection('pickupTimes').get();
-    let closestPickupTime = null;
+    
     if (!pickupTimesSnapshot.empty) {
         const pickupTimes = [];
         pickupTimesSnapshot.forEach(doc => {
             pickupTimes.push({id: doc.id, ...doc.data()});
         });
 
-        const futurePickupTimes = pickupTimes.filter(pt => new Date(`${pt.date}T${pt.time.split(' - ')[0]}`) > now);
+        const futurePickupTimes = pickupTimes
+            .map(pt => {
+                const timePart = pt.time.split(' - ')[0].toUpperCase();
+                const modifier = timePart.includes('PM') ? 'PM' : 'AM';
+                let [hours, minutes] = timePart.replace('PM', '').replace('AM', '').trim().split(':');
+                
+                hours = parseInt(hours, 10);
+                minutes = parseInt(minutes, 10);
+
+                if (modifier === 'PM' && hours < 12) {
+                    hours += 12;
+                }
+                if (modifier === 'AM' && hours === 12) { // Handle midnight case (12 AM)
+                    hours = 0;
+                }
+                
+                const pickupDate = new Date(pt.date);
+                pickupDate.setHours(hours, minutes, 0, 0);
+
+                return { ...pt, pickupDate };
+            })
+            .filter(pt => pt.pickupDate > now);
         
         if(futurePickupTimes.length > 0) {
-            futurePickupTimes.sort((a,b) => new Date(`${a.date}T${a.time.split(' - ')[0]}`) - new Date(`${b.date}T${b.time.split(' - ')[0]}`));
+            futurePickupTimes.sort((a,b) => a.pickupDate - b.pickupDate);
             closestPickupTime = futurePickupTimes[0];
         }
     }
@@ -1759,8 +1780,8 @@ async function submitVenmoOrder() {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      if (deliveryDetails.type === 'pickup' && deliveryDetails.pickupTime !== 'To be confirmed') {
-        schedulePickupNotification(orderId, `${deliveryDetails.pickupTime.split(' at ')[0]}T${deliveryDetails.pickupTime.split(' at ')[1].split(' - ')[0]}`);
+      if (deliveryDetails.type === 'pickup' && closestPickupTime) {
+        schedulePickupNotification(orderId, closestPickupTime.pickupDate);
       }
 
       // Only if transaction succeeds, show success UI
