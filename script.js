@@ -1874,7 +1874,7 @@ async function refreshMenu() {
             <select id="quantity-${doc.id}" class="quantity-select">
                 ${quantityOptions}
             </select>
-            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '�'}', ${item.stock})">Add to Cart</button>
+            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '🍰'}', ${item.stock})">Add to Cart</button>
         </div>
       `;
       menuDiv.appendChild(itemDiv);
@@ -2034,4 +2034,3 @@ document.addEventListener('keypress', function(e) {
     }
   }
 });
-�
