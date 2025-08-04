@@ -825,6 +825,8 @@ function toggleAdminSection(sectionName) {
         loadEmployees();
     } else if (sectionName === 'profit') {
         calculateAndShowProfit();
+    } else if (sectionName === 'pickup-times') {
+        loadPickupTimes();
     }
 }
 
@@ -1552,6 +1554,7 @@ async function submitVenmoOrder() {
 
   const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
   let deliveryDetails = {};
+  let pickupTime = null;
 
   if (selectedOption === 'delivery') {
     const address = document.getElementById('delivery-address')?.value?.trim();
@@ -1568,10 +1571,22 @@ async function submitVenmoOrder() {
       fee: 5.00
     };
   } else {
+    // Get a random pickup time
+    const pickupTimesSnapshot = await firebase.firestore().collection('pickupTimes').get();
+    if (!pickupTimesSnapshot.empty) {
+        const pickupTimes = [];
+        pickupTimesSnapshot.forEach(doc => {
+            pickupTimes.push(doc.data());
+        });
+        const randomIndex = Math.floor(Math.random() * pickupTimes.length);
+        pickupTime = pickupTimes[randomIndex];
+    }
+
     deliveryDetails = {
       type: 'pickup',
       location: '7 Moonlight Isle',
-      fee: 0
+      fee: 0,
+      pickupTime: pickupTime ? `${pickupTime.date} at ${pickupTime.time}` : 'To be confirmed'
     };
   }
 
@@ -1633,7 +1648,7 @@ async function submitVenmoOrder() {
       
       const deliveryText = deliveryDetails.type === 'delivery' 
         ? `📍 Delivery to: ${deliveryDetails.address}` 
-        : `🏪 Pickup at: ${deliveryDetails.location}`;
+        : `🏪 Pickup at: ${deliveryDetails.location} on ${deliveryDetails.pickupTime}`;
       
       showStatus(`🎉 Order ${orderId} submitted! We'll confirm payment and contact you soon.`, 'success');
       
