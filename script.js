@@ -933,7 +933,7 @@ function forceUpdateTotals() {
 
 function getDeliveryFee() {
   const isDelivery = document.querySelector('input[name="delivery-option"]:checked')?.value === 'delivery';
-  const fee = isDelivery ? 4.00 : 0;
+  const fee = isDelivery ? 5.00 : 0;
   console.log('🚚 getDeliveryFee returning:', fee, 'for option:', isDelivery ? 'delivery' : 'pickup');
   return fee;
 }
@@ -1555,7 +1555,7 @@ async function submitVenmoOrder() {
       type: 'delivery',
       address: address,
       instructions: document.getElementById('delivery-instructions')?.value?.trim() || '',
-      fee: 4.00
+      fee: 5.00
     };
   } else {
     deliveryDetails = {
@@ -1729,27 +1729,34 @@ function resetCartView() {
     <!-- Delivery Options -->
     <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(0, 0, 0, 0.1);">
       <h4 style="color: #d4691a; margin-bottom: 20px; text-align: center;">📍 Delivery Options</h4>
-      <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; transition: all 0.3s ease;">
-          <input type="radio" name="delivery-option" value="pickup" checked onchange="updateDeliveryOption(); console.log('📍 Pickup selected - triggering update');">
-          <span style="font-weight: 600; color: #667eea;">🏪 Pickup at 7 Moonlight Isle</span>
+      <div class="delivery-options-container">
+        <label class="delivery-option-label">
+          <input type="radio" name="delivery-option" value="pickup" checked onchange="updateDeliveryOption();">
+          <div class="delivery-option-content">
+            <span>🏪</span>
+            <span>Pickup at 7 Moonlight Isle</span>
+          </div>
         </label>
-        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 10px; transition: all 0.3s ease;">
-          <input type="radio" name="delivery-option" value="delivery" onchange="updateDeliveryOption(); console.log('📍 Delivery selected - triggering update');">
-          <span style="font-weight: 600; color: #667eea;">🚚 Delivery (+$1.50)</span>
+        
+        <label class="delivery-option-label">
+          <input type="radio" name="delivery-option" value="delivery" onchange="updateDeliveryOption();">
+          <div class="delivery-option-content">
+            <span>🚚</span>
+            <span>Delivery (+$5.00)</span>
+          </div>
         </label>
       </div>
       <div id="address-section" style="display: none; background: rgba(248, 249, 250, 0.9); padding: 20px; border-radius: 10px; margin-top: 15px;">
-        <h5 style="color: #667eea; margin-bottom: 15px;">📍 Delivery Address</h5>
-        <input id="delivery-address" type="text" placeholder="Enter your full address in Covenant Hills or Ladera Ranch" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 10px;">
+        <h5 style="color: #18181b; margin-bottom: 15px;">📍 Delivery Address</h5>
+        <input id="delivery-address" type="text" placeholder="Enter your full address in Covenant Hills" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 10px;">
         <input id="delivery-instructions" type="text" placeholder="Delivery instructions (optional)" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem;">
       </div>
     </div>
     <!-- Payment Instructions -->
-    <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 30px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px;">
+    <div style="background: #27272a; padding: 30px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px;">
       <h3 style="margin-bottom: 15px; font-family: 'Playfair Display', serif;">💳 Payment Instructions</h3>
       <p style="margin-bottom: 20px; opacity: 0.9;">To complete your order, please send payment via Venmo:</p>
-      <a id="venmo-payment-link" href="https://venmo.com/u/YOUR_VENMO_USERNAME" target="_blank" style="display: inline-block; background: #3D95CE; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin: 10px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(61, 149, 206, 0.4);">
+      <a id="venmo-payment-link" href="https://venmo.com/u/YOUR_VENMO_USERNAME" target="_blank" style="display: inline-block; background: #18181b; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin: 10px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);">
         📱 Pay with Venmo
       </a>
       <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 15px; margin-top: 20px;">
