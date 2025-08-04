@@ -2050,6 +2050,13 @@ async function loadUserOrders() {
       const itemsList = order.items.map(item => `${item.emoji} ${item.name} - $${item.price.toFixed(2)}`).join('<br>');
       const orderDate = order.createdAt ? order.createdAt.toDate().toLocaleDateString() : 'Recent';
       
+      let deliveryInfoHTML = '';
+      if (order.deliveryDetails && order.deliveryDetails.type === 'pickup' && order.deliveryDetails.pickupTime) {
+          deliveryInfoHTML = `<p style="font-weight: bold; color: #d4691a; margin-top: 10px;">Pickup Time: ${order.deliveryDetails.pickupTime}</p>`;
+      } else if (order.deliveryDetails && order.deliveryDetails.type === 'delivery' && order.deliveryDetails.address) {
+          deliveryInfoHTML = `<p style="font-weight: bold; color: #3D95CE; margin-top: 10px;">Delivery to: ${order.deliveryDetails.address}</p>`;
+      }
+
       orderDiv.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <strong>Order from ${orderDate}</strong>
@@ -2058,6 +2065,7 @@ async function loadUserOrders() {
           </div>
         </div>
         <div style="margin: 10px 0;">${itemsList}</div>
+        ${deliveryInfoHTML}
         <div style="font-weight: bold; color: #28a745; margin-bottom: 15px;">Total: $${order.total.toFixed(2)}</div>
         <div style="text-align: right;">
           <button class="btn btn-danger" onclick="deleteOrder('${doc.id}', 'user')" style="padding: 8px 15px; font-size: 0.9rem;">🗑️ Delete Order</button>
