@@ -477,6 +477,19 @@ async function deletePickupTime(id) {
   }
 }
 
+function schedulePickupNotification(orderId, pickupTime) {
+  const pickupDateTime = new Date(pickupTime);
+  const notificationTime = new Date(pickupDateTime.getTime() - 10 * 60 * 1000); // 10 minutes before
+  const now = new Date();
+
+  if (notificationTime > now) {
+    const delay = notificationTime - now;
+    setTimeout(() => {
+      showStatus(`Reminder: Your order #${orderId} is ready for pickup in 10 minutes!`, 'success');
+    }, delay);
+  }
+}
+
 // *** END: PICKUP TIME MANAGEMENT FUNCTIONS ***
 
 
@@ -1652,8 +1665,7 @@ async function submitVenmoOrder() {
 
   const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
   let deliveryDetails = {};
-  let pickupTime = null;
-
+  
   if (selectedOption === 'delivery') {
     const address = document.getElementById('delivery-address')?.value?.trim();
     if (!address) {
@@ -1669,22 +1681,29 @@ async function submitVenmoOrder() {
       fee: 5.00
     };
   } else {
-    // Get a random pickup time
+    // Find the closest available pickup time
+    const now = new Date();
     const pickupTimesSnapshot = await firebase.firestore().collection('pickupTimes').get();
+    let closestPickupTime = null;
     if (!pickupTimesSnapshot.empty) {
         const pickupTimes = [];
         pickupTimesSnapshot.forEach(doc => {
-            pickupTimes.push(doc.data());
+            pickupTimes.push({id: doc.id, ...doc.data()});
         });
-        const randomIndex = Math.floor(Math.random() * pickupTimes.length);
-        pickupTime = pickupTimes[randomIndex];
+
+        const futurePickupTimes = pickupTimes.filter(pt => new Date(`${pt.date}T${pt.time.split(' - ')[0]}`) > now);
+        
+        if(futurePickupTimes.length > 0) {
+            futurePickupTimes.sort((a,b) => new Date(`${a.date}T${a.time.split(' - ')[0]}`) - new Date(`${b.date}T${b.time.split(' - ')[0]}`));
+            closestPickupTime = futurePickupTimes[0];
+        }
     }
 
     deliveryDetails = {
       type: 'pickup',
       location: '7 Moonlight Isle',
       fee: 0,
-      pickupTime: pickupTime ? `${pickupTime.date} at ${pickupTime.time}` : 'To be confirmed'
+      pickupTime: closestPickupTime ? `${closestPickupTime.date} at ${closestPickupTime.time}` : 'To be confirmed'
     };
   }
 
@@ -1739,6 +1758,10 @@ async function submitVenmoOrder() {
         customerInstructions: 'Payment via Venmo - pending verification',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+
+      if (deliveryDetails.type === 'pickup' && deliveryDetails.pickupTime !== 'To be confirmed') {
+        schedulePickupNotification(orderId, `${deliveryDetails.pickupTime.split(' at ')[0]}T${deliveryDetails.pickupTime.split(' at ')[1].split(' - ')[0]}`);
+      }
 
       // Only if transaction succeeds, show success UI
       cart = [];
