@@ -1491,30 +1491,37 @@ function signOut() {
 async function addToCart(id, name, price, emoji, stock) {
     if (!requireLocationVerification()) return;
     
+    const quantitySelect = document.getElementById(`quantity-${id}`);
+    const quantity = parseInt(quantitySelect.value);
+
     const itemsInCart = cart.filter(item => item.id === id).length;
-    if (itemsInCart >= stock) {
-      showStatus(`No more stock for ${name}!`, 'error');
+    if (itemsInCart + quantity > stock) {
+      showStatus(`Not enough stock for ${name}! Only ${stock - itemsInCart} more available.`, 'error');
       return;
     }
 
     try {
         const deals = await getActiveDealsForItem(id);
-        let finalItem = { id, name, price: parseFloat(price), emoji, isFree: false };
+        
+        for (let i = 0; i < quantity; i++) {
+            let finalItem = { id, name, price: parseFloat(price), emoji, isFree: false };
 
-        if (deals.length > 0) {
-            const bestDeal = deals[0]; 
-            if (bestDeal.type === 'buy-get') {
-                finalItem = { ...finalItem, ...bestDeal, dealType: 'buy-get' };
-            } else {
-                finalItem = applyDealToItem(finalItem, bestDeal);
+            if (deals.length > 0) {
+                const bestDeal = deals[0]; 
+                if (bestDeal.type === 'buy-get') {
+                    finalItem = { ...finalItem, ...bestDeal, dealType: 'buy-get' };
+                } else {
+                    finalItem = applyDealToItem(finalItem, bestDeal);
+                }
             }
+
+            cart.push(finalItem);
         }
 
-        cart.push(finalItem);
         updateFreeItemsInCart(); // Centralized logic for updating deals
         renderCart();
         
-        showStatus(`${name} added to cart`, 'success');
+        showStatus(`${quantity} x ${name} added to cart`, 'success');
     } catch (err) {
         console.error("Error adding item to cart:", err);
         showStatus("Failed to add item to cart.", 'error');
@@ -1858,7 +1865,16 @@ async function refreshMenu() {
         </div>
         <div class="menu-item-description">${item.description}</div>
         ${dealDescriptions}
-        <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '🍰'}', ${item.stock})">Add to Cart</button>
+        <div class="add-to-cart-controls">
+            <select id="quantity-${doc.id}" class="quantity-select">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+            </select>
+            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '🍰'}', ${item.stock})">Add to Cart</button>
+        </div>
       `;
       menuDiv.appendChild(itemDiv);
     });
