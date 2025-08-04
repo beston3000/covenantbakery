@@ -203,6 +203,7 @@
               <button class="btn btn-secondary" onclick="toggleAdminSection('deals')">🏷️ Deals</button>
               <button class="btn btn-secondary" onclick="toggleAdminSection('employees')">👥 Employees</button>
               <button class="btn btn-secondary" onclick="toggleAdminSection('profit')">💰 Profit</button>
+              <button class="btn btn-secondary" onclick="toggleAdminSection('pickup-times')">⏰ Pickup Times</button>
             </div>
             
             <!-- Add Item Form -->
@@ -354,6 +355,20 @@
               <div id="profit-orders-list">
                 <div class="empty-state"><p>No completed orders today.</p></div>
               </div>
+            </div>
+          </div>
+          
+          <div id="admin-pickup-times-section" class="admin-section" style="display: none;">
+            <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">⏰ Pickup Time Management</h2>
+            <div style="background: #27272a; color: white; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+              <h3 style="margin-bottom: 20px;">Add New Pickup Time</h3>
+              <div class="input-group">
+                <input id="pickup-time-input" type="text" placeholder="e.g., 4:00 PM - 5:00 PM" style="background: rgba(255, 255, 255, 0.9); color: #333;">
+                <button class="btn btn-success" onclick="addPickupTime()">Add Time</button>
+              </div>
+            </div>
+            <div id="pickup-times-list">
+              <div class="empty-state"><p>Loading pickup times...</p></div>
             </div>
           </div>
 
