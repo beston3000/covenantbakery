@@ -538,13 +538,18 @@ async function deletePickupTime(id) {
 }
 
 function schedulePickupNotification(orderId, pickupDateTime) {
-  const notificationTime = new Date(pickupDateTime.getTime() - 10 * 60 * 1000); // 10 minutes before
+  const notificationTime = new Date(pickupDateTime.getTime() - 10 * 60 * 1000);
   const now = new Date();
 
   if (notificationTime > now) {
     const delay = notificationTime - now;
     setTimeout(() => {
-      showStatus(`Reminder: Your order #${orderId} is ready for pickup in 10 minutes!`, 'success');
+      if (Notification.permission === 'granted') {
+        new Notification('Pickup Reminder', {
+          body: `Your Covenant Hills Bakery order #${orderId} is ready for pickup in 10 minutes!`,
+          icon: 'logo.png'
+        });
+      }
     }, delay);
   }
 }
@@ -1445,13 +1450,29 @@ function verifyLocation(position) {
     locationVerified = true;
     showLocationSuccess(nearestArea);
     hideLocationVerification();
-    showMainContent();
-    updateDeliveryOptionsUI();
+    document.getElementById('notification-permission').style.display = 'flex';
   } else {
     verifiedLocationArea = null;
     showLocationDenied();
   }
 }
+
+function requestNotificationPermission(shouldRequest) {
+  document.getElementById('notification-permission').style.display = 'none';
+  if (shouldRequest) {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        showStatus('Notifications enabled!', 'success');
+      } else {
+        showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
+      }
+      showMainContent();
+    });
+  } else {
+    showMainContent();
+  }
+}
+
 
 function updateDeliveryOptionsUI() {
     const deliveryLabel = document.querySelector('label:has(input[value="delivery"])');
