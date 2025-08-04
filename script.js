@@ -24,6 +24,12 @@ const firebaseConfig = {
 // All function definitions moved up to avoid ReferenceErrors
 
 // Helper functions
+function formatDate(dateString) {
+  const date = new Date(dateString + 'T00:00:00'); // Add T00:00:00 to prevent timezone issues
+  const options = { month: 'long', day: 'numeric' };
+  return date.toLocaleDateString('en-US', options);
+}
+
 function showStatus(message, type = 'success') {
     const statusDiv = document.getElementById('status-messages');
     const messageKey = `${type}-${message.replace(/\s+/g, '-')}`;
@@ -408,12 +414,13 @@ async function loadPickupTimes() {
 
       const date = pickupTime.date;
       const time = pickupTime.time;
+      const formattedDate = formatDate(date);
 
       pickupTimeDiv.innerHTML = `
         <div class="menu-item-header">
           <div class="menu-item-emoji">⏰</div>
           <div class="menu-item-info">
-            <h3>${date} at ${time}</h3>
+            <h3>${formattedDate} at ${time}</h3>
           </div>
         </div>
         <div class="item-controls">
@@ -1777,7 +1784,7 @@ async function submitVenmoOrder() {
       type: 'pickup',
       location: '7 Moonlight Isle',
       fee: 0,
-      pickupTime: closestPickupTime ? `${closestPickupTime.date} at ${closestPickupTime.time}` : 'To be confirmed'
+      pickupTime: closestPickupTime ? `${formatDate(closestPickupTime.date)} at ${closestPickupTime.time}` : 'To be confirmed'
     };
   }
 
