@@ -381,6 +381,104 @@ async function calculateAndShowProfit() {
 }
 // *** END: PROFIT CALCULATION FUNCTIONS ***
 
+// *** START: PICKUP TIME MANAGEMENT FUNCTIONS ***
+
+async function loadPickupTimes() {
+  if (!userData || userData.role !== 'admin') {
+    showStatus("You don't have permission to view this.", 'error');
+    return;
+  }
+
+  const pickupTimesDiv = document.getElementById('pickup-times-list');
+  pickupTimesDiv.innerHTML = '<div class="empty-state"><span class="loading"></span> Loading pickup times...</div>';
+
+  try {
+    const snapshot = await firebase.firestore().collection('pickupTimes').orderBy('date').get();
+
+    if (snapshot.empty) {
+      pickupTimesDiv.innerHTML = '<div class="empty-state"><p>No pickup times available. Add one to get started!</p></div>';
+      return;
+    }
+
+    pickupTimesDiv.innerHTML = '';
+    snapshot.forEach(doc => {
+      const pickupTime = doc.data();
+      const pickupTimeDiv = document.createElement('div');
+      pickupTimeDiv.className = 'admin-menu-item'; // Re-using style for consistency
+
+      pickupTimeDiv.innerHTML = `
+        <div class="menu-item-header">
+          <div class="menu-item-emoji">⏰</div>
+          <div class="menu-item-info">
+            <h3>${pickupTime.date} at ${pickupTime.time}</h3>
+          </div>
+        </div>
+        <div class="item-controls">
+          <button class="btn btn-danger" onclick="deletePickupTime('${doc.id}')">🗑️ Delete</button>
+        </div>
+      `;
+      pickupTimesDiv.appendChild(pickupTimeDiv);
+    });
+  } catch (err) {
+    console.error("Error loading pickup times:", err);
+    showStatus("Failed to load pickup times.", 'error');
+    pickupTimesDiv.innerHTML = '<div class="empty-state"><p>Error loading pickup times. Check console.</p></div>';
+  }
+}
+
+async function addPickupTime() {
+  const date = document.getElementById('pickup-date-input').value;
+  const time = document.getElementById('pickup-time-input').value.trim();
+
+  if (!date || !time) {
+    showStatus("Please enter both a date and a time.", 'warning');
+    return;
+  }
+
+  const btn = event.target;
+  const stopLoading = showLoading(btn);
+
+  try {
+    await firebase.firestore().collection('pickupTimes').add({
+      date,
+      time,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showStatus('Pickup time added successfully!', 'success');
+    document.getElementById('pickup-date-input').value = '';
+    document.getElementById('pickup-time-input').value = '';
+    loadPickupTimes(); // Refresh the list
+  } catch (err) {
+    console.error("Error adding pickup time:", err);
+    showStatus("Failed to add pickup time.", 'error');
+  } finally {
+    stopLoading();
+  }
+}
+
+
+async function deletePickupTime(id) {
+  if (!confirm('Are you sure you want to delete this pickup time?')) {
+    return;
+  }
+
+  const btn = event.target;
+  const stopLoading = showLoading(btn);
+
+  try {
+    await firebase.firestore().collection('pickupTimes').doc(id).delete();
+    showStatus('Pickup time deleted successfully.', 'success');
+    loadPickupTimes(); // Refresh the list
+  } catch (err) {
+    console.error("Error deleting pickup time:", err);
+    showStatus('Failed to delete pickup time.', 'error');
+  } finally {
+    stopLoading();
+  }
+}
+
+// *** END: PICKUP TIME MANAGEMENT FUNCTIONS ***
+
 
 function initializeVenmoPayment() {
   console.log('💳 Initializing Venmo payment system...');
