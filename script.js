@@ -1449,8 +1449,8 @@ function verifyLocation(position) {
   if (isInServiceArea) {
     locationVerified = true;
     showLocationSuccess(nearestArea);
-    hideLocationVerification();
     setTimeout(() => {
+        hideLocationVerification();
         document.getElementById('notification-permission').style.display = 'flex';
     }, 500);
   } else {
