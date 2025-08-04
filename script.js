@@ -404,17 +404,29 @@ async function loadPickupTimes() {
     snapshot.forEach(doc => {
       const pickupTime = doc.data();
       const pickupTimeDiv = document.createElement('div');
-      pickupTimeDiv.className = 'admin-menu-item'; // Re-using style for consistency
+      pickupTimeDiv.className = 'admin-menu-item'; 
+
+      const date = pickupTime.date;
+      const time = pickupTime.time;
 
       pickupTimeDiv.innerHTML = `
         <div class="menu-item-header">
           <div class="menu-item-emoji">⏰</div>
           <div class="menu-item-info">
-            <h3>${pickupTime.date} at ${pickupTime.time}</h3>
+            <h3>${date} at ${time}</h3>
           </div>
         </div>
         <div class="item-controls">
+          <button class="btn btn-primary" onclick="editPickupTime('${doc.id}', '${date}', '${time}')">✏️ Edit</button>
           <button class="btn btn-danger" onclick="deletePickupTime('${doc.id}')">🗑️ Delete</button>
+        </div>
+        <div id="edit-pickup-form-${doc.id}" class="edit-form" style="display: none;">
+          <input id="edit-pickup-date-${doc.id}" type="date" value="${date}">
+          <input id="edit-pickup-time-${doc.id}" type="text" value="${time}" placeholder="e.g., 4:00 PM - 5:00 PM">
+          <div style="margin-top: 10px;">
+            <button class="btn btn-success" onclick="savePickupTime('${doc.id}')">💾 Save</button>
+            <button class="btn btn-secondary" onclick="cancelEditPickupTime('${doc.id}')">❌ Cancel</button>
+          </div>
         </div>
       `;
       pickupTimesDiv.appendChild(pickupTimeDiv);
@@ -425,6 +437,47 @@ async function loadPickupTimes() {
     pickupTimesDiv.innerHTML = '<div class="empty-state"><p>Error loading pickup times. Check console.</p></div>';
   }
 }
+
+function editPickupTime(id, date, time) {
+  // Pre-fill the form with existing data
+  document.getElementById(`edit-pickup-date-${id}`).value = date;
+  document.getElementById(`edit-pickup-time-${id}`).value = time;
+  // Show the form
+  document.getElementById(`edit-pickup-form-${id}`).style.display = 'block';
+}
+
+function cancelEditPickupTime(id) {
+  document.getElementById(`edit-pickup-form-${id}`).style.display = 'none';
+}
+
+async function savePickupTime(id) {
+  const date = document.getElementById(`edit-pickup-date-${id}`).value;
+  const time = document.getElementById(`edit-pickup-time-${id}`).value.trim();
+
+  if (!date || !time) {
+    showStatus("Date and time cannot be empty.", 'warning');
+    return;
+  }
+
+  const btn = event.target;
+  const stopLoading = showLoading(btn);
+
+  try {
+    await firebase.firestore().collection('pickupTimes').doc(id).update({
+      date,
+      time
+    });
+    showStatus('Pickup time updated successfully!', 'success');
+    cancelEditPickupTime(id);
+    loadPickupTimes(); // Refresh the list
+  } catch (err) {
+    console.error("Error saving pickup time:", err);
+    showStatus('Failed to save pickup time.', 'error');
+  } finally {
+    stopLoading();
+  }
+}
+
 
 async function addPickupTime() {
   const date = document.getElementById('pickup-date-input').value;
