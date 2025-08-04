@@ -1450,7 +1450,9 @@ function verifyLocation(position) {
     locationVerified = true;
     showLocationSuccess(nearestArea);
     hideLocationVerification();
-    document.getElementById('notification-permission').style.display = 'flex';
+    setTimeout(() => {
+        document.getElementById('notification-permission').style.display = 'flex';
+    }, 500);
   } else {
     verifiedLocationArea = null;
     showLocationDenied();
