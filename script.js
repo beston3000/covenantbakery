@@ -829,7 +829,10 @@ function toggleAdminSection(sectionName) {
 }
 
 function switchTab(tabName) {
-  if (tabName !== 'cart' && !requireLocationVerification()) return;
+  if (!locationVerified && tabName !== 'account') {
+    showStatus('Please verify your location to continue.', 'warning');
+    return;
+  }
   
   document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
@@ -1382,7 +1385,7 @@ function checkLocationAgain() {
 
 function requireLocationVerification() {
   if (!locationVerified) {
-    showStatus('Please verify your location first to access this feature.', 'warning');
+    showStatus('Please verify your location to continue.', 'warning');
     return false;
   }
   return true;
