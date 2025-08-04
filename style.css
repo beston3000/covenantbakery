@@ -258,6 +258,25 @@ input:focus {
   font-weight: 400;
 }
 
+.add-to-cart-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.quantity-select {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #d4d4d8;
+    background: #fafafa;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.add-to-cart-controls .btn {
+    flex-grow: 1;
+}
+
 .cart-item {
   background: #ffffff;
   padding: 20px;
