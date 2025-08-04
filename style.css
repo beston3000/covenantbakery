@@ -31,6 +31,12 @@ body {
   overflow: hidden;
 }
 
+.header-logo {
+  width: 80px;
+  height: auto;
+  margin: 0 auto 15px;
+}
+
 .header h1 { 
   font-family: 'Playfair Display', serif;
   font-size: 4rem; 
