@@ -1852,6 +1852,11 @@ async function refreshMenu() {
           dealDescriptions += `<div class="deal-description">🏷️ ${deal.description}</div>`;
         }
       });
+
+      let quantityOptions = '';
+      for (let i = 1; i <= 12; i++) {
+        quantityOptions += `<option value="${i}">${i}</option>`;
+      }
       
       itemDiv.innerHTML = `
         ${dealBadges}
@@ -1867,13 +1872,9 @@ async function refreshMenu() {
         ${dealDescriptions}
         <div class="add-to-cart-controls">
             <select id="quantity-${doc.id}" class="quantity-select">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
+                ${quantityOptions}
             </select>
-            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '🍰'}', ${item.stock})">Add to Cart</button>
+            <button class="btn btn-primary" onclick="addToCart('${doc.id}', '${item.name}', ${item.price}, '${item.emoji || '�'}', ${item.stock})">Add to Cart</button>
         </div>
       `;
       menuDiv.appendChild(itemDiv);
@@ -2033,3 +2034,4 @@ document.addEventListener('keypress', function(e) {
     }
   }
 });
+�
