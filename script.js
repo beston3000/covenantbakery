@@ -1114,7 +1114,7 @@ function forceUpdateTotals() {
 
 function getDeliveryFee() {
   const isDelivery = document.querySelector('input[name="delivery-option"]:checked')?.value === 'delivery';
-  const fee = isDelivery ? 5.00 : 0;
+  const fee = isDelivery ? 3.00 : 0;
   console.log('🚚 getDeliveryFee returning:', fee, 'for option:', isDelivery ? 'delivery' : 'pickup');
   return fee;
 }
@@ -1571,7 +1571,11 @@ function checkLocationAgain() {
 
 function requestNotificationPermission() {
     const notificationPopup = document.getElementById('notification-permission');
-    if (notificationPopup) {
+    if (Notification.permission === 'denied') {
+        showStatus('Notifications are blocked by your browser. Please enable them in your browser settings.', 'warning');
+        return;
+    }
+    if (notificationPopup && Notification.permission === 'default') {
       notificationPopup.style.display = 'flex';
   
       document.getElementById('notification-btn-yes').onclick = () => {
@@ -1589,7 +1593,24 @@ function requestNotificationPermission() {
         notificationPopup.style.display = 'none';
       };
     }
-  }
+}
+
+async function manualRequestNotificationPermission() {
+    if (Notification.permission === 'granted') {
+        showStatus('Notifications are already enabled.', 'success');
+        return;
+    }
+    if (Notification.permission === 'denied') {
+        showStatus('Notifications are blocked. Please enable them in your browser settings.', 'warning');
+        return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+        showStatus('Notifications enabled!', 'success');
+    } else {
+        showStatus('Notifications not enabled.', 'warning');
+    }
+}
 
 
 // Auth functions
@@ -1778,7 +1799,7 @@ async function proceedWithOrderSubmission() {
       type: 'delivery',
       address: orderDataForSubmission.deliveryAddress,
       instructions: orderDataForSubmission.deliveryInstructions || '',
-      fee: 5.00
+      fee: 3.00
     };
   } else {
     // Find the closest available pickup time
@@ -2019,7 +2040,7 @@ function resetCartView() {
           <input type="radio" name="delivery-option" value="delivery" onchange="updateDeliveryOption();">
           <div class="delivery-option-content">
             <span>🚚</span>
-            <span>Delivery (+$5.00)</span>
+            <span>Delivery (+$3.00)</span>
           </div>
         </label>
       </div>
