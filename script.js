@@ -9,6 +9,7 @@ let locationVerified = false;
 let verifiedLocationArea = null; // To store the user's specific location
 let locationCheckInProgress = false;
 const notificationTimers = {}; // For stacking notifications
+let orderDataForSubmission = null; // Temporarily store order data during permission requests
 
 // Firebase config
 const firebaseConfig = {
@@ -1452,9 +1453,13 @@ function verifyLocation(position) {
     hideLocationVerification();
     showMainContent();
     updateDeliveryOptionsUI();
+    if (orderDataForSubmission) {
+      proceedWithOrderSubmission();
+    }
   } else {
     verifiedLocationArea = null;
     showLocationDenied();
+    orderDataForSubmission = null;
   }
 }
 
@@ -1492,6 +1497,7 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
 
 function handleLocationError(error) {
   locationCheckInProgress = false;
+  orderDataForSubmission = null;
   let errorMessage = '';
   
   switch(error.code) {
@@ -1560,18 +1566,8 @@ function checkLocationAgain() {
   locationCheckInProgress = false;
 }
 
-function requireLocationVerification() {
-  if (!locationVerified) {
-    showStatus('Please verify your location to continue.', 'warning');
-    return false;
-  }
-  return true;
-}
-
 // Auth functions
 async function signInWithGoogle() {
-  if (!requireLocationVerification()) return;
-  
   const googleBtn = event.target;
   const stopLoading = showLoading(googleBtn);
 
@@ -1601,8 +1597,6 @@ async function signInWithGoogle() {
 }
 
 async function signUp() {
-  if (!requireLocationVerification()) return;
-  
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   
@@ -1632,8 +1626,6 @@ async function signUp() {
 }
 
 async function signIn() {
-  if (!requireLocationVerification()) return;
-  
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   
@@ -1666,7 +1658,10 @@ function signOut() {
 
 // REVISED: addToCart and removeFromCart now use the new updateFreeItemsInCart function
 async function addToCart(id, name, price, emoji, stock) {
-    if (!requireLocationVerification()) return;
+    if (!locationVerified) {
+        showLocationVerification();
+        return;
+    }
     
     const quantitySelect = document.getElementById(`quantity-${id}`);
     const quantity = parseInt(quantitySelect.value);
@@ -1714,8 +1709,6 @@ function removeFromCart(index) {
 }
 
 async function submitVenmoOrder() {
-  if (!requireLocationVerification()) return;
-  
   if (!currentUser) {
     showStatus("Please sign in to place an order.", 'warning');
     switchTab('account');
@@ -1728,21 +1721,37 @@ async function submitVenmoOrder() {
   }
 
   const selectedOption = document.querySelector('input[name="delivery-option"]:checked')?.value;
+  
+  orderDataForSubmission = {
+      selectedOption: selectedOption,
+      deliveryAddress: document.getElementById('delivery-address')?.value?.trim(),
+      deliveryInstructions: document.getElementById('delivery-instructions')?.value?.trim()
+  };
+
+  if (!locationVerified) {
+      showLocationVerification();
+      return;
+  }
+  
+  proceedWithOrderSubmission();
+}
+
+async function proceedWithOrderSubmission() {
   let deliveryDetails = {};
   let closestPickupTime = null;
   
-  if (selectedOption === 'delivery') {
-    const address = document.getElementById('delivery-address')?.value?.trim();
-    if (!address) {
+  if (orderDataForSubmission.selectedOption === 'delivery') {
+    if (!orderDataForSubmission.deliveryAddress) {
       showStatus("Please enter a delivery address.", 'warning');
       document.getElementById('delivery-address')?.focus();
+      orderDataForSubmission = null;
       return;
     }
     
     deliveryDetails = {
       type: 'delivery',
-      address: address,
-      instructions: document.getElementById('delivery-instructions')?.value?.trim() || '',
+      address: orderDataForSubmission.deliveryAddress,
+      instructions: orderDataForSubmission.deliveryInstructions || '',
       fee: 5.00
     };
   } else {
@@ -1885,6 +1894,7 @@ async function submitVenmoOrder() {
     refreshMenu(); // Refresh menu to show updated stock
   } finally {
     stopLoading();
+    orderDataForSubmission = null;
   }
 }
 
