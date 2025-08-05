@@ -1451,7 +1451,9 @@ function verifyLocation(position) {
     locationVerified = true;
     showLocationSuccess(nearestArea);
     hideLocationVerification();
-    requestNotificationPermission(); // New function call
+    if (Notification.permission !== 'granted') {
+        requestNotificationPermission();
+    }
     showMainContent();
     updateDeliveryOptionsUI();
     if (orderDataForSubmission) {
@@ -2251,13 +2253,6 @@ async function handleAuthStateChange(user) {
       document.getElementById('orders-tab').style.display = 'block';
       if (userData.role === 'admin') {
         document.getElementById('admin-tab').style.display = 'block';
-      }
-
-      if (Notification.permission !== 'granted') {
-          const notificationPopup = document.getElementById('notification-permission');
-          if (notificationPopup) {
-            notificationPopup.style.display = 'block';
-          }
       }
 
       await loadMenuItems();
