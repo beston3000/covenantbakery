@@ -1451,7 +1451,7 @@ function verifyLocation(position) {
     locationVerified = true;
     showLocationSuccess(nearestArea);
     hideLocationVerification();
-    if (Notification.permission !== 'granted') {
+    if (Notification.permission === 'default') {
         requestNotificationPermission();
     }
     showMainContent();
@@ -1577,21 +1577,6 @@ function requestNotificationPermission() {
     }
     if (notificationPopup && Notification.permission === 'default') {
       notificationPopup.style.display = 'flex';
-  
-      document.getElementById('notification-btn-yes').onclick = () => {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            showStatus('Notifications enabled!', 'success');
-          } else {
-            showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
-          }
-          notificationPopup.style.display = 'none';
-        });
-      };
-  
-      document.getElementById('notification-btn-no').onclick = () => {
-        notificationPopup.style.display = 'none';
-      };
     }
 }
 
@@ -2317,6 +2302,26 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleDealFields();
       }
     }, 1000);
+
+    // FIX: Add event listeners for notification permission buttons
+    const notificationPopup = document.getElementById('notification-permission');
+    if (notificationPopup) {
+        document.getElementById('notification-btn-yes').onclick = () => {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    showStatus('Notifications enabled!', 'success');
+                } else {
+                    showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
+                }
+                notificationPopup.style.display = 'none';
+            });
+        };
+
+        document.getElementById('notification-btn-no').onclick = () => {
+            notificationPopup.style.display = 'none';
+        };
+    }
+
   } catch (error) {
     console.error('Failed to initialize Firebase:', error);
     showStatus('Failed to load the application. Please refresh the page.', 'error');
