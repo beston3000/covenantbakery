@@ -1451,6 +1451,7 @@ function verifyLocation(position) {
     locationVerified = true;
     showLocationSuccess(nearestArea);
     hideLocationVerification();
+    requestNotificationPermission(); // New function call
     showMainContent();
     updateDeliveryOptionsUI();
     if (orderDataForSubmission) {
@@ -1566,18 +1567,27 @@ function checkLocationAgain() {
   locationCheckInProgress = false;
 }
 
-function handleNotificationPermission(shouldRequest) {
-  if (shouldRequest) {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        showStatus('Notifications enabled!', 'success');
-      } else {
-        showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
-      }
-      document.getElementById('notification-permission-section').style.display = 'none';
-    });
+function requestNotificationPermission() {
+    const notificationPopup = document.getElementById('notification-permission');
+    if (notificationPopup) {
+      notificationPopup.style.display = 'flex';
+  
+      document.getElementById('notification-btn-yes').onclick = () => {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            showStatus('Notifications enabled!', 'success');
+          } else {
+            showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
+          }
+          notificationPopup.style.display = 'none';
+        });
+      };
+  
+      document.getElementById('notification-btn-no').onclick = () => {
+        notificationPopup.style.display = 'none';
+      };
+    }
   }
-}
 
 
 // Auth functions
@@ -1991,7 +2001,6 @@ function resetCartView() {
   
   // Original checkout section HTML for restoration
   const originalCheckoutHTML = `
-    <!-- Delivery Options -->
     <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(0, 0, 0, 0.1);">
       <h4 style="color: #d4691a; margin-bottom: 20px; text-align: center;">📍 Delivery Options</h4>
       <div class="delivery-options-container">
@@ -2017,7 +2026,6 @@ function resetCartView() {
         <input id="delivery-instructions" type="text" placeholder="Delivery instructions (optional)" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem;">
       </div>
     </div>
-    <!-- Payment Instructions -->
     <div style="background: #27272a; padding: 30px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px;">
       <h3 style="margin-bottom: 15px; font-family: 'Playfair Display', serif;">💳 Payment Instructions</h3>
       <p style="margin-bottom: 20px; opacity: 0.9;">To complete your order, please send payment via Venmo:</p>
@@ -2032,7 +2040,6 @@ function resetCartView() {
         <p style="font-size: 0.9rem; opacity: 0.8;">⚠️ Please include your order details in the Venmo note!</p>
       </div>
     </div>
-    <!-- Order Confirmation -->
     <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; text-align: center;">
       <h4 style="color: #d4691a; margin-bottom: 15px;">📋 After Payment</h4>
       <p style="margin-bottom: 20px; color: #666;">Once you've sent the Venmo payment, click below to submit your order:</p>
