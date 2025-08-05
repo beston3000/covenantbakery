@@ -139,6 +139,7 @@
           </div>
           <div id="checkout-section" style="display: none; margin-top: 30px;">
             
+            <!-- Delivery Options -->
             <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 1px solid rgba(0, 0, 0, 0.1);">
               <h4 style="color: #d4691a; margin-bottom: 20px; text-align: center;">📍 Delivery Options</h4>
               
@@ -160,6 +161,7 @@
                 </label>
               </div>
               
+              <!-- Address Input (hidden by default) -->
               <div id="address-section" style="display: none; background: rgba(248, 249, 250, 0.9); padding: 20px; border-radius: 10px; margin-top: 15px;">
                 <h5 style="color: #18181b; margin-bottom: 15px;">📍 Delivery Address</h5>
                 <input id="delivery-address" type="text" placeholder="Enter your full address in Covenant Hills" style="width: 100%; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 10px;">
@@ -167,10 +169,12 @@
               </div>
             </div>
 
+            <!-- Payment Instructions -->
             <div style="background: #27272a; padding: 30px; border-radius: 20px; color: white; text-align: center; margin-bottom: 20px;">
               <h3 style="margin-bottom: 15px; font-family: 'Playfair Display', serif;">💳 Payment Instructions</h3>
               <p style="margin-bottom: 20px; opacity: 0.9;">To complete your order, please send payment via Venmo:</p>
               
+              <!-- Venmo Payment Button -->
               <a id="venmo-payment-link" href="https://venmo.com/u/YOUR_VENMO_USERNAME" target="_blank" style="display: inline-block; background: #18181b; color: white; padding: 15px 30px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 1.1rem; margin: 10px; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);">
                 📱 Pay with Venmo
               </a>
@@ -184,6 +188,7 @@
               </div>
             </div>
             
+            <!-- Order Confirmation -->
             <div style="background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; text-align: center;">
               <h4 style="color: #d4691a; margin-bottom: 15px;">📋 After Payment</h4>
               <p style="margin-bottom: 20px; color: #666;">Once you've sent the Venmo payment, click below to submit your order:</p>
@@ -203,6 +208,7 @@
         <div id="admin-panel" class="tab-panel">
           <h2 style="color: #d4691a; margin-bottom: 20px; text-align: center;">👑 Admin Dashboard</h2>
           
+          <!-- Admin Controls -->
           <div style="background: #27272a; color: white; padding: 25px; border-radius: 10px; margin-bottom: 20px;">
             <h3 style="margin-bottom: 20px;">Admin Controls</h3>
             <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
@@ -215,6 +221,7 @@
               <button class="btn btn-secondary" onclick="toggleAdminSection('pickup-times')">⏰ Pickup Times</button>
             </div>
             
+            <!-- Add Item Form -->
             <div id="add-item-form" style="display:none; background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 10px; margin-top: 20px;">
               <h4 style="margin-bottom: 15px;">Add New Bakery Item</h4>
               <input id="item-name" placeholder="Item Name (e.g., Chocolate Croissant)" style="margin-bottom: 10px; background: rgba(255, 255, 255, 0.9); color: #333; width: 100%;">
@@ -230,6 +237,7 @@
             </div>
           </div>
           
+          <!-- Admin Content Sections -->
           <div id="admin-menu-section" class="admin-section">
             <h3 style="color: #d4691a; margin-bottom: 15px;">📦 Menu Management</h3>
             <div id="admin-menu-items" class="menu-grid">
