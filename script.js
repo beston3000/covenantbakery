@@ -9,6 +9,7 @@ let locationVerified = false;
 let verifiedLocationArea = null; // To store the user's specific location
 let locationCheckInProgress = false;
 const notificationTimers = {}; // For stacking notifications
+let orderDataForSubmission = null; // Temporarily store order data during permission requests
 
 // Firebase config
 const firebaseConfig = {
@@ -1564,6 +1565,23 @@ function checkLocationAgain() {
   statusDiv.textContent = '';
   locationCheckInProgress = false;
 }
+
+function handleNotificationPermission(shouldRequest) {
+  document.getElementById('notification-permission').style.display = 'none';
+  if (shouldRequest) {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        showStatus('Notifications enabled!', 'success');
+      } else {
+        showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
+      }
+      showMainContent();
+    });
+  } else {
+    showMainContent();
+  }
+}
+
 
 // Auth functions
 async function signInWithGoogle() {
