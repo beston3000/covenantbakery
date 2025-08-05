@@ -19,6 +19,22 @@
       <p>Fresh homemade goods in Covenant Hills</p>
     </div>
 
+    <div id="location-verification" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;">
+      <div style="background: white; padding: 40px; border-radius: 20px; text-align: center; max-width: 500px; margin: 20px;">
+        <h2 style="color: #d4691a; margin-bottom: 20px;">📍 Location Verification Required for Delivery</h2>
+        <p style="margin-bottom: 20px; color: #666; line-height: 1.6;">
+          We offer delivery exclusively to Covenant Hills. Please share your location to enable this option. Pickup is available to all customers in our service area.
+        </p>
+        <div id="location-status" style="margin: 20px 0; font-weight: bold;"></div>
+        <button id="location-btn" class="btn btn-primary" onclick="requestLocation()" style="margin: 10px;">
+          📍 Share My Location
+        </button>
+        <p style="margin-top: 20px; font-size: 0.9rem; color: #888;">
+          Your location data is only used for verification and is not stored.
+        </p>
+      </div>
+    </div>
+    
     <div id="location-denied" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; display: flex; align-items: center; justify-content: center;">
       <div style="background: white; padding: 40px; border-radius: 20px; text-align: center; max-width: 500px; margin: 20px;">
         <h2 style="color: #dc3545; margin-bottom: 20px;">❌ Outside Service Area</h2>
@@ -40,7 +56,7 @@
 
     <div id="status-messages"></div>
 
-    <div id="main-content">
+    <div id="main-content" style="display: none;">
     <div class="tab-container">
       <div class="tab-navigation">
         <button class="tab-button active" onclick="switchTab('account')" id="account-tab">🔐 Account</button>
@@ -87,18 +103,10 @@
             </div>
           </div>
 
-          <div id="location-and-notifications" style="margin-top: 20px; padding: 20px; background: #f9f9f9; border-radius: 10px;">
-            <div id="location-verification-section">
-                <h4 style="color: #d4691a; margin-bottom: 10px;">📍 Location Verification</h4>
-                <p style="margin-bottom: 15px; color: #666;">Verify your location to enable delivery and other features.</p>
-                <div id="location-status" style="margin-bottom: 15px; font-weight: bold;"></div>
-                <button id="location-btn" class="btn btn-primary" onclick="requestLocation()">Verify Location</button>
-            </div>
-            <div id="notification-permission-section" style="display: none; margin-top: 20px;">
-                <h4 style="color: #d4691a; margin-bottom: 10px;">🔔 Notification Permissions</h4>
-                <p style="margin-bottom: 15px; color: #666;">Enable notifications to get reminders for your pickup orders.</p>
-                <button id="notification-btn" class="btn btn-primary" onclick="handleNotificationPermission(true)">Enable Notifications</button>
-            </div>
+          <div id="notification-permission-section" style="display: none; margin-top: 20px; text-align: center;">
+            <h4 style="color: #d4691a; margin-bottom: 15px;">🔔 Get Pickup Reminders</h4>
+            <p style="margin-bottom: 20px; color: #666;">Enable notifications to get a reminder 10 minutes before your pickup time.</p>
+            <button class="btn btn-primary" onclick="handleNotificationPermission(true)">Enable Notifications</button>
           </div>
 
           <div class="support-contact">
