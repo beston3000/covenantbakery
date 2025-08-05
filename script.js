@@ -31,6 +31,17 @@ function formatDate(dateString) {
   return date.toLocaleDateString('en-US', options);
 }
 
+function format12Hour(timeString) { // e.g., "16:00"
+    if (!timeString) return '';
+    const [hours, minutes] = timeString.split(':');
+    const h = parseInt(hours, 10);
+    const m = parseInt(minutes, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12; // Convert 0 to 12
+    return `${hour12}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
+
 function showStatus(message, type = 'success') {
     const statusDiv = document.getElementById('status-messages');
     const messageKey = `${type}-${message.replace(/\s+/g, '-')}`;
@@ -414,23 +425,25 @@ async function loadPickupTimes() {
       pickupTimeDiv.className = 'admin-menu-item'; 
 
       const date = pickupTime.date;
-      const time = pickupTime.time;
+      const startTime = pickupTime.startTime;
+      const endTime = pickupTime.endTime;
       const formattedDate = formatDate(date);
 
       pickupTimeDiv.innerHTML = `
         <div class="menu-item-header">
           <div class="menu-item-emoji">⏰</div>
           <div class="menu-item-info">
-            <h3>${formattedDate} at ${time}</h3>
+            <h3>${formattedDate} at ${format12Hour(startTime)} - ${format12Hour(endTime)}</h3>
           </div>
         </div>
         <div class="item-controls">
-          <button class="btn btn-primary" onclick="editPickupTime('${doc.id}', '${date}', '${time}')">✏️ Edit</button>
+          <button class="btn btn-primary" onclick="editPickupTime('${doc.id}', '${date}', '${startTime}', '${endTime}')">✏️ Edit</button>
           <button class="btn btn-danger" onclick="deletePickupTime('${doc.id}')">🗑️ Delete</button>
         </div>
         <div id="edit-pickup-form-${doc.id}" class="edit-form" style="display: none;">
           <input id="edit-pickup-date-${doc.id}" type="date" value="${date}">
-          <input id="edit-pickup-time-${doc.id}" type="text" value="${time}" placeholder="e.g., 4:00 PM - 5:00 PM">
+          <input id="edit-pickup-start-time-${doc.id}" type="time" value="${startTime}">
+          <input id="edit-pickup-end-time-${doc.id}" type="time" value="${endTime}">
           <div style="margin-top: 10px;">
             <button class="btn btn-success" onclick="savePickupTime('${doc.id}')">💾 Save</button>
             <button class="btn btn-secondary" onclick="cancelEditPickupTime('${doc.id}')">❌ Cancel</button>
@@ -446,11 +459,10 @@ async function loadPickupTimes() {
   }
 }
 
-function editPickupTime(id, date, time) {
-  // Pre-fill the form with existing data
+function editPickupTime(id, date, startTime, endTime) {
   document.getElementById(`edit-pickup-date-${id}`).value = date;
-  document.getElementById(`edit-pickup-time-${id}`).value = time;
-  // Show the form
+  document.getElementById(`edit-pickup-start-time-${id}`).value = startTime;
+  document.getElementById(`edit-pickup-end-time-${id}`).value = endTime;
   document.getElementById(`edit-pickup-form-${id}`).style.display = 'block';
 }
 
@@ -460,10 +472,11 @@ function cancelEditPickupTime(id) {
 
 async function savePickupTime(id) {
   const date = document.getElementById(`edit-pickup-date-${id}`).value;
-  const time = document.getElementById(`edit-pickup-time-${id}`).value.trim();
+  const startTime = document.getElementById(`edit-pickup-start-time-${id}`).value;
+  const endTime = document.getElementById(`edit-pickup-end-time-${id}`).value;
 
-  if (!date || !time) {
-    showStatus("Date and time cannot be empty.", 'warning');
+  if (!date || !startTime || !endTime) {
+    showStatus("Date, start time, and end time cannot be empty.", 'warning');
     return;
   }
 
@@ -473,7 +486,8 @@ async function savePickupTime(id) {
   try {
     await firebase.firestore().collection('pickupTimes').doc(id).update({
       date,
-      time
+      startTime,
+      endTime
     });
     showStatus('Pickup time updated successfully!', 'success');
     cancelEditPickupTime(id);
@@ -489,10 +503,11 @@ async function savePickupTime(id) {
 
 async function addPickupTime() {
   const date = document.getElementById('pickup-date-input').value;
-  const time = document.getElementById('pickup-time-input').value.trim();
+  const startTime = document.getElementById('pickup-start-time-input').value;
+  const endTime = document.getElementById('pickup-end-time-input').value;
 
-  if (!date || !time) {
-    showStatus("Please enter both a date and a time.", 'warning');
+  if (!date || !startTime || !endTime) {
+    showStatus("Please enter a date, start time, and end time.", 'warning');
     return;
   }
 
@@ -502,12 +517,14 @@ async function addPickupTime() {
   try {
     await firebase.firestore().collection('pickupTimes').add({
       date,
-      time,
+      startTime,
+      endTime,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showStatus('Pickup time added successfully!', 'success');
     document.getElementById('pickup-date-input').value = '';
-    document.getElementById('pickup-time-input').value = '';
+    document.getElementById('pickup-start-time-input').value = '';
+    document.getElementById('pickup-end-time-input').value = '';
     loadPickupTimes(); // Refresh the list
   } catch (err) {
     console.error("Error adding pickup time:", err);
@@ -1799,29 +1816,13 @@ async function proceedWithOrderSubmission() {
 
         const futurePickupTimes = pickupTimes
             .map(pt => {
-                const timePart = pt.time.split(' - ')[0].toUpperCase();
-                const modifier = timePart.includes('PM') ? 'PM' : 'AM';
-                let [hours, minutes] = timePart.replace('PM', '').replace('AM', '').trim().split(':');
-                
-                hours = parseInt(hours, 10);
-                minutes = parseInt(minutes, 10);
-
-                if (modifier === 'PM' && hours < 12) {
-                    hours += 12;
-                }
-                if (modifier === 'AM' && hours === 12) { // Handle midnight case (12 AM)
-                    hours = 0;
-                }
-                
-                const pickupDate = new Date(pt.date);
-                pickupDate.setHours(hours, minutes, 0, 0);
-
-                return { ...pt, pickupDate };
+                const pickupDateTime = new Date(`${pt.date}T${pt.startTime}`);
+                return { ...pt, pickupDateTime };
             })
-            .filter(pt => pt.pickupDate > now);
+            .filter(pt => pt.pickupDateTime > now);
         
         if(futurePickupTimes.length > 0) {
-            futurePickupTimes.sort((a,b) => a.pickupDate - b.pickupDate);
+            futurePickupTimes.sort((a,b) => a.pickupDateTime - b.pickupDateTime);
             closestPickupTime = futurePickupTimes[0];
         }
     }
@@ -1830,7 +1831,7 @@ async function proceedWithOrderSubmission() {
       type: 'pickup',
       location: '7 Moonlight Isle',
       fee: 0,
-      pickupTime: closestPickupTime ? `${formatDate(closestPickupTime.date)} at ${closestPickupTime.time}` : 'To be confirmed'
+      pickupTime: closestPickupTime ? `${formatDate(closestPickupTime.date)} at ${format12Hour(closestPickupTime.startTime)} - ${format12Hour(closestPickupTime.endTime)}` : 'To be confirmed'
     };
   }
 
@@ -1896,7 +1897,7 @@ async function proceedWithOrderSubmission() {
       });
 
       if (deliveryDetails.type === 'pickup' && closestPickupTime) {
-        schedulePickupNotification(orderId, closestPickupTime.pickupDate);
+        schedulePickupNotification(orderId, closestPickupTime.pickupDateTime);
       }
 
       // Only if transaction succeeds, show success UI
