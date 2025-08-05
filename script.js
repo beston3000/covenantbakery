@@ -9,7 +9,6 @@ let locationVerified = false;
 let verifiedLocationArea = null; // To store the user's specific location
 let locationCheckInProgress = false;
 const notificationTimers = {}; // For stacking notifications
-let orderDataForSubmission = null; // Temporarily store order data during permission requests
 
 // Firebase config
 const firebaseConfig = {
