@@ -1451,32 +1451,17 @@ function verifyLocation(position) {
     locationVerified = true;
     showLocationSuccess(nearestArea);
     hideLocationVerification();
-    setTimeout(() => {
-        document.getElementById('notification-permission').style.display = 'flex';
-    }, 500);
+    showMainContent();
+    updateDeliveryOptionsUI();
+    if (orderDataForSubmission) {
+      proceedWithOrderSubmission();
+    }
   } else {
     verifiedLocationArea = null;
     showLocationDenied();
     orderDataForSubmission = null;
   }
 }
-
-function handleNotificationPermission(shouldRequest) {
-  document.getElementById('notification-permission').style.display = 'none';
-  if (shouldRequest) {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        showStatus('Notifications enabled!', 'success');
-      } else {
-        showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
-      }
-      showMainContent();
-    });
-  } else {
-    showMainContent();
-  }
-}
-
 
 function updateDeliveryOptionsUI() {
     const deliveryLabel = document.querySelector('label:has(input[value="delivery"])');
@@ -1580,6 +1565,20 @@ function checkLocationAgain() {
   statusDiv.textContent = '';
   locationCheckInProgress = false;
 }
+
+function handleNotificationPermission(shouldRequest) {
+  if (shouldRequest) {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        showStatus('Notifications enabled!', 'success');
+      } else {
+        showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
+      }
+      document.getElementById('notification-permission-section').style.display = 'none';
+    });
+  }
+}
+
 
 // Auth functions
 async function signInWithGoogle() {
