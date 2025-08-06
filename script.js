@@ -1468,11 +1468,11 @@ function verifyLocation(position) {
     locationVerified = true;
     showLocationSuccess(nearestArea);
     hideLocationVerification();
-    if (Notification.permission === 'default') {
-        requestNotificationPermission();
-    }
-    showMainContent();
+    showMainContent(); // Show main content first
     updateDeliveryOptionsUI();
+    if (Notification.permission === 'default') {
+        requestNotificationPermission(); // Then show notification prompt if needed
+    }
     if (orderDataForSubmission) {
       proceedWithOrderSubmission();
     }
@@ -2301,7 +2301,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }, 1000);
 
-    // FIX: Add event listeners for notification permission buttons
+    // Add event listeners for notification permission buttons
     const notificationPopup = document.getElementById('notification-permission');
     if (notificationPopup) {
         document.getElementById('notification-btn-yes').onclick = () => {
@@ -2312,13 +2312,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
                 }
                 notificationPopup.style.display = 'none';
-                showMainContent(); // Ensure main content is visible after interaction
             });
         };
 
         document.getElementById('notification-btn-no').onclick = () => {
             notificationPopup.style.display = 'none';
-            showMainContent(); // Ensure main content is visible after interaction
         };
     }
 
