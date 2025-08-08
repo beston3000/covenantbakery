@@ -555,22 +555,6 @@ async function deletePickupTime(id) {
   }
 }
 
-function schedulePickupNotification(orderId, pickupDateTime) {
-  const notificationTime = new Date(pickupDateTime.getTime() - 10 * 60 * 1000);
-  const now = new Date();
-
-  if (notificationTime > now) {
-    const delay = notificationTime - now;
-    setTimeout(() => {
-      if (Notification.permission === 'granted') {
-        new Notification('Pickup Reminder', {
-          body: `Your Covenant Hills Bakery order #${orderId} is ready for pickup in 10 minutes!`,
-          icon: 'logo.png'
-        });
-      }
-    }, delay);
-  }
-}
 
 // *** END: PICKUP TIME MANAGEMENT FUNCTIONS ***
 
@@ -1470,9 +1454,7 @@ function verifyLocation(position) {
     hideLocationVerification();
     showMainContent(); // Show main content first
     updateDeliveryOptionsUI();
-    if (Notification.permission === 'default') {
-        requestNotificationPermission(); // Then show notification prompt if needed
-    }
+    
     if (orderDataForSubmission) {
       proceedWithOrderSubmission();
     }
@@ -1585,35 +1567,6 @@ function checkLocationAgain() {
   statusDiv.textContent = '';
   locationCheckInProgress = false;
 }
-
-function requestNotificationPermission() {
-    const notificationPopup = document.getElementById('notification-permission');
-    if (Notification.permission === 'denied') {
-        showStatus('Notifications are blocked by your browser. Please enable them in your browser settings.', 'warning');
-        return;
-    }
-    if (notificationPopup && Notification.permission === 'default') {
-      notificationPopup.style.display = 'flex';
-    }
-}
-
-async function manualRequestNotificationPermission() {
-    if (Notification.permission === 'granted') {
-        showStatus('Notifications are already enabled.', 'success');
-        return;
-    }
-    if (Notification.permission === 'denied') {
-        showStatus('Notifications are blocked. Please enable them in your browser settings.', 'warning');
-        return;
-    }
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-        showStatus('Notifications enabled!', 'success');
-    } else {
-        showStatus('Notifications not enabled.', 'warning');
-    }
-}
-
 
 // Auth functions
 async function signInWithGoogle() {
@@ -1835,15 +1788,6 @@ async function proceedWithOrderSubmission() {
     };
   }
 
-  if (deliveryDetails.type === 'pickup' && Notification.permission !== 'granted') {
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-        showStatus('Notifications enabled for pickup reminders!', 'success');
-    } else {
-        showStatus('You won\'t receive pickup reminders. You can enable notifications in your browser settings.', 'warning');
-    }
-  }
-
   const submitBtn = document.getElementById('submit-order-btn');
   const stopLoading = showLoading(submitBtn);
 
@@ -1895,10 +1839,6 @@ async function proceedWithOrderSubmission() {
         customerInstructions: 'Payment via Venmo - pending verification',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-
-      if (deliveryDetails.type === 'pickup' && closestPickupTime) {
-        schedulePickupNotification(orderId, closestPickupTime.pickupDateTime);
-      }
 
       // Only if transaction succeeds, show success UI
       cart = [];
@@ -2300,26 +2240,6 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleDealFields();
       }
     }, 1000);
-
-    // Add event listeners for notification permission buttons
-    const notificationPopup = document.getElementById('notification-permission');
-    if (notificationPopup) {
-        document.getElementById('notification-btn-yes').onclick = () => {
-            Notification.requestPermission().then(permission => {
-                if (permission === 'granted') {
-                    showStatus('Notifications enabled!', 'success');
-                } else {
-                    showStatus('Notifications not enabled. You can change this in your browser settings.', 'warning');
-                }
-                notificationPopup.style.display = 'none';
-            });
-        };
-
-        document.getElementById('notification-btn-no').onclick = () => {
-            notificationPopup.style.display = 'none';
-        };
-    }
-
   } catch (error) {
     console.error('Failed to initialize Firebase:', error);
     showStatus('Failed to load the application. Please refresh the page.', 'error');
